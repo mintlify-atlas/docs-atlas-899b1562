@@ -1,0 +1,295 @@
+---
+title: Wellness Heatmap
+description: Generate visual wellness heatmaps showing department-level employee wellbeing metrics
+---
+
+## Get Wellness Heatmap
+
+Generate a wellness heatmap for a hospital showing department-level aggregated wellbeing metrics. The heatmap provides visual representation of employee wellness across different departments with color-coded indicators.
+
+```bash
+GET /api/diagnostic/wellness-heatmap/:hospitalId
+```
+
+### Authentication
+
+Requires authentication and `admin` or `user` role authorization.
+
+### Path Parameters
+
+<ParamField path="hospitalId" type="string" required>
+  Unique identifier of the hospital
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="period" type="string" default="weekly">
+  Time period for aggregation. Possible values:
+  - `daily` - Current day
+  - `weekly` - Current week (default)
+  - `monthly` - Current month
+</ParamField>
+
+### Request Example
+
+```bash
+curl -X GET "https://api.cuido.com/api/diagnostic/wellness-heatmap/hospital_001?period=weekly" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Response data object
+  
+  <Expandable title="data fields">
+    <ResponseField name="data.heatmap" type="object">
+      Heatmap data and summary statistics
+      
+      <Expandable title="heatmap fields">
+        <ResponseField name="heatmap.heatmapData" type="array">
+          Array of department wellness data points
+          
+          <Expandable title="heatmapData item fields">
+            <ResponseField name="x" type="number">
+              X-coordinate for grid positioning (0-1 for 2x2 grid)
+            </ResponseField>
+            
+            <ResponseField name="y" type="number">
+              Y-coordinate for grid positioning
+            </ResponseField>
+            
+            <ResponseField name="value" type="number">
+              Wellness score from 0-100
+              - 80-100: Excellent wellness
+              - 60-79: Good wellness
+              - 40-59: Moderate wellness
+              - 0-39: Poor wellness (critical)
+            </ResponseField>
+            
+            <ResponseField name="area" type="string">
+              Department name (e.g., "urgencias", "hospitalizacion", "consulta_externa", "administracion")
+            </ResponseField>
+            
+            <ResponseField name="employeeCount" type="number">
+              Number of active employees in this department
+            </ResponseField>
+            
+            <ResponseField name="color" type="string">
+              Hex color code for visual representation:
+              - `#10B981` (Green): value ≥ 80
+              - `#F59E0B` (Yellow): value ≥ 60
+              - `#EF4444` (Red): value ≥ 40
+              - `#DC2626` (Dark Red): value < 40
+            </ResponseField>
+            
+            <ResponseField name="metrics" type="object">
+              Department-specific metrics
+              
+              <Expandable title="metrics fields">
+                <ResponseField name="metrics.averageMood" type="number">
+                  Average mood score (1-5 scale)
+                </ResponseField>
+                
+                <ResponseField name="metrics.riskDistribution" type="object">
+                  Distribution of employees by risk level
+                  - `bajo`: Count of low-risk employees
+                  - `medio`: Count of medium-risk employees
+                  - `alto`: Count of high-risk employees
+                </ResponseField>
+              </Expandable>
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        
+        <ResponseField name="heatmap.summary" type="object">
+          Hospital-wide summary statistics
+          
+          <Expandable title="summary fields">
+            <ResponseField name="summary.totalEmployees" type="number">
+              Total number of active employees across all departments
+            </ResponseField>
+            
+            <ResponseField name="summary.averageWellness" type="number">
+              Average wellness score across all departments (0-100)
+            </ResponseField>
+            
+            <ResponseField name="summary.criticalAreas" type="array">
+              Array of department names with wellness scores below 40 (critical threshold)
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        
+        <ResponseField name="heatmap.generatedAt" type="string">
+          ISO 8601 timestamp when heatmap was generated
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Mapa de calor generado exitosamente",
+  "data": {
+    "heatmap": {
+      "heatmapData": [
+        {
+          "x": 0,
+          "y": 0,
+          "value": 72,
+          "area": "urgencias",
+          "employeeCount": 45,
+          "color": "#F59E0B",
+          "metrics": {
+            "averageMood": 3.6,
+            "riskDistribution": {
+              "bajo": 18,
+              "medio": 22,
+              "alto": 5
+            }
+          }
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "value": 85,
+          "area": "hospitalizacion",
+          "employeeCount": 62,
+          "color": "#10B981",
+          "metrics": {
+            "averageMood": 4.2,
+            "riskDistribution": {
+              "bajo": 48,
+              "medio": 12,
+              "alto": 2
+            }
+          }
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "value": 68,
+          "area": "consulta_externa",
+          "employeeCount": 28,
+          "color": "#F59E0B",
+          "metrics": {
+            "averageMood": 3.4,
+            "riskDistribution": {
+              "bajo": 12,
+              "medio": 14,
+              "alto": 2
+            }
+          }
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "value": 91,
+          "area": "administracion",
+          "employeeCount": 15,
+          "color": "#10B981",
+          "metrics": {
+            "averageMood": 4.5,
+            "riskDistribution": {
+              "bajo": 14,
+              "medio": 1,
+              "alto": 0
+            }
+          }
+        }
+      ],
+      "summary": {
+        "totalEmployees": 150,
+        "averageWellness": 79,
+        "criticalAreas": []
+      },
+      "generatedAt": "2026-03-05T10:30:00.000Z"
+    }
+  }
+}
+```
+
+## How Wellness Value is Calculated
+
+The wellness value (0-100) for each department is calculated based on average employee mood scores:
+
+```javascript
+wellnessValue = (averageMood / 5) * 100
+```
+
+Where `averageMood` is the average of all employees' `currentMoodScore` in that department (scale 1-5).
+
+See implementation in `diagnosticService.js:304-389`.
+
+## Color Coding
+
+The heatmap uses a color-coded system for quick visual assessment:
+
+- **Green (#10B981)**: Wellness ≥ 80 - Healthy department
+- **Yellow (#F59E0B)**: Wellness 60-79 - Moderate attention needed
+- **Red (#EF4444)**: Wellness 40-59 - Requires intervention
+- **Dark Red (#DC2626)**: Wellness < 40 - Critical state
+
+<Warning>
+  Departments with wellness scores below 40 appear in `criticalAreas` and should receive immediate attention from hospital administration.
+</Warning>
+
+## Department Aggregation
+
+The heatmap aggregates data from multiple sources:
+
+1. **Employee Wellness Metrics** - Current mood, workload, and satisfaction from employee records
+2. **Survey Data** - Recent quick survey responses within the specified period
+3. **Risk Distribution** - Count of employees at each risk level (bajo, medio, alto)
+4. **Participation Rates** - Percentage of employees who completed recent surveys
+
+## Data Persistence
+
+Generated heatmap data is saved to the `WellnessMetric` collection for historical tracking and trend analysis. This allows administrators to:
+
+- Compare wellness trends over time
+- Identify seasonal patterns
+- Track the effectiveness of wellness interventions
+- Generate reports for stakeholders
+
+See model definition in `models/WellnessMetric.js`.
+
+## Grid Layout
+
+The heatmap uses a 2x2 grid layout for standard hospital departments:
+
+| Position | Department |
+|----------|------------|
+| (0,0) | urgencias (Emergency) |
+| (1,0) | hospitalizacion (Inpatient) |
+| (0,1) | consulta_externa (Outpatient) |
+| (1,1) | administracion (Administration) |
+
+<Note>
+  The grid layout can be customized in the frontend to support different hospital structures or additional departments.
+</Note>
+
+## Use Cases
+
+- **Executive Dashboards**: Quick overview of organizational wellness
+- **Department Managers**: Identify areas needing support
+- **HR Teams**: Prioritize wellness interventions
+- **Trend Analysis**: Track wellness changes over time
+- **Resource Allocation**: Direct resources to departments with greatest need
+
+## Related Endpoints
+
+- [Quick Survey](/api/diagnostic/survey) - Submit individual employee surveys
+- [Smart Alerts](/api/diagnostic/alerts) - View alerts generated for at-risk departments

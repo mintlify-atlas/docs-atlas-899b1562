@@ -1,0 +1,673 @@
+---
+title: 'Recognition Module'
+description: 'Gamification system with points, badges, leaderboards, and public recognition to boost employee motivation and engagement'
+---
+
+## Overview
+
+The Recognition module transforms employee engagement through gamification, public recognition, and competitive leaderboards. By rewarding participation and achievement, it creates a culture of appreciation and continuous improvement.
+
+<Note>
+The gamification system is tightly integrated with all other modules - employees earn points from surveys, courses, mentorship usage, and peer recognition.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Points System" icon="coins">
+    Earn points for every action: surveys, courses, mentorship, achievements
+  </Card>
+  <Card title="Badge Collection" icon="award">
+    Unlock badges for milestones, streaks, and special accomplishments
+  </Card>
+  <Card title="Leaderboards" icon="ranking-star">
+    Hospital-wide and departmental rankings to encourage friendly competition
+  </Card>
+  <Card title="Recognition Wall" icon="bullhorn">
+    Public celebration of achievements visible to entire organization
+  </Card>
+</CardGroup>
+
+---
+
+## Recognition Types
+
+### Automatic Recognition
+
+The system automatically grants recognition for various achievements:
+
+```javascript
+// From recognitionService.js:42-68
+getRecognitionConfig(type) {
+  const configs = {
+    'encuesta_completada': {
+      rewardType: 'puntos',
+      title: '¡Encuesta Completada!',
+      description: 'Gracias por compartir tu feedback semanal',
+      points: 5,
+      badge: 'participativo'
+    },
+    'curso_terminado': {
+      rewardType: 'diploma',
+      title: '¡Curso Completado!',
+      description: 'Has terminado exitosamente tu capacitación',
+      points: 20,
+      badge: 'aprendiz'
+    },
+    'empleado_mes': {
+      rewardType: 'mencion',
+      title: '¡Empleado del Mes!',
+      description: 'Reconocimiento por tu excelente desempeño',
+      points: 100,
+      badge: 'estrella'
+    }
+  };
+  
+  return configs[type] || configs['encuesta_completada'];
+}
+```
+
+### Recognition Schema
+
+```javascript
+// From models/Recognition.js
+const recognitionSchema = new mongoose.Schema({
+  employeeId: { type: ObjectId, ref: 'Employee', required: true },
+  recognitionType: {
+    type: String,
+    enum: ['encuesta_completada', 'curso_terminado', 'empleado_mes', 'racha_semanal', 'mentor_activo']
+  },
+  rewardType: {
+    type: String,
+    enum: ['puntos', 'diploma', 'mencion', 'badge']
+  },
+  title: String,
+  description: String,
+  pointsAwarded: { type: Number, default: 0 },
+  badgeEarned: String,
+  achievementData: mongoose.Schema.Types.Mixed,
+  isPublic: { type: Boolean, default: true },
+  issuedAt: { type: Date, default: Date.now }
+});
+```
+
+---
+
+## Points System
+
+### Point Allocation
+
+Different actions earn different point values:
+
+| Action | Points | Integration |
+|--------|--------|-------------|
+| Complete quick survey | 5 | Diagnostic module |
+| Complete full course | 20 | Microlearning module |
+| Earn a badge | 10 | Recognition module |
+| Level up | 25 | Gamification system |
+| 7-day streak | 15 | Diagnostic module |
+| Employee of the month | 100 | Manual recognition |
+| Voice note in survey | 8 | Diagnostic module |
+| Complete gamified survey | 3-10 | Diagnostic module |
+
+### Grant Recognition
+
+```javascript
+// From recognitionService.js:9-40
+async grantRecognition(employeeId, type, data = {}) {
+  const recognitionConfig = this.getRecognitionConfig(type);
+  
+  const recognition = new Recognition({
+    employeeId,
+    recognitionType: type,
+    rewardType: recognitionConfig.rewardType,
+    title: recognitionConfig.title,
+    description: recognitionConfig.description,
+    pointsAwarded: recognitionConfig.points,
+    badgeEarned: recognitionConfig.badge,
+    achievementData: data
+  });
+  
+  await recognition.save();
+  
+  // Update employee points (if implemented)
+  // await this.updateEmployeePoints(employeeId, recognitionConfig.points);
+  
+  logger.info('Reconocimiento otorgado', {
+    employeeId,
+    type,
+    points: recognitionConfig.points
+  });
+  
+  return recognition;
+}
+```
+
+### API Usage
+
+```javascript
+POST /api/recognition/grant
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "type": "curso_terminado",
+  "data": {
+    "courseTitle": "RCP Básico",
+    "score": 95
+  }
+}
+
+Response:
+{
+  "status": "success",
+  "data": {
+    "recognition": {
+      "_id": "507f1f77bcf86cd799439066",
+      "title": "¡Curso Completado!",
+      "pointsAwarded": 20,
+      "badgeEarned": "aprendiz",
+      "issuedAt": "2024-01-15T14:30:00Z"
+    }
+  }
+}
+```
+
+---
+
+## Badge System
+
+### Automatic Badge Awards
+
+Badges are automatically awarded based on achievements:
+
+```javascript
+// From diagnosticService.js:263-301
+async checkAndAwardBadges(employee) {
+  const badges = [];
+  
+  // Badge: Weekly participation
+  if (employee.gamification.currentStreak >= 7) {
+    badges.push({
+      name: 'Participación Semanal',
+      description: '7 días consecutivos respondiendo encuestas',
+      earnedAt: new Date()
+    });
+  }
+  
+  // Badge: Level achievement
+  if (employee.gamification.level === 5) {
+    badges.push({
+      name: 'Colaborador Comprometido',
+      description: 'Alcanzó el nivel 5',
+      earnedAt: new Date()
+    });
+  }
+  
+  // Badge: Positive mood
+  if (employee.wellnessMetrics.currentMoodScore >= 4.5) {
+    badges.push({
+      name: 'Ánimo Positivo',
+      description: 'Mantiene un excelente estado de ánimo',
+      earnedAt: new Date()
+    });
+  }
+  
+  // Add only new badges
+  badges.forEach(badge => {
+    const exists = employee.gamification.badges.some(b => b.name === badge.name);
+    if (!exists) {
+      employee.gamification.badges.push(badge);
+      employee.gamification.totalPoints += 10; // Bonus for badge
+    }
+  });
+}
+```
+
+### Badge Categories
+
+<Accordion title="Participation Badges">
+  - **Participación Semanal**: 7-day streak
+  - **Participación Mensual**: 30-day streak
+  - **Participación Completa**: Complete all survey questions
+  - **Respuesta Rápida**: Complete survey in under 3 minutes
+</Accordion>
+
+<Accordion title="Achievement Badges">
+  - **Colaborador Comprometido**: Reach level 5
+  - **Aprendiz**: Complete a course
+  - **Maestro**: Complete 5 courses
+  - **Mentor Activo**: Use mentorship 10+ times
+</Accordion>
+
+<Accordion title="Wellness Badges">
+  - **Ánimo Positivo**: Maintain mood score >= 4.5
+  - **Equilibrio**: Low stress levels for 30 days
+  - **Líder de Bienestar**: Help 5 colleagues with wellness
+</Accordion>
+
+<Accordion title="Special Badges">
+  - **Empleado del Mes**: Manual award by supervisor
+  - **Estrella del Equipo**: Exceptional peer reviews
+  - **Innovador**: Suggest implemented improvement
+</Accordion>
+
+---
+
+## Leveling System
+
+### Level Calculation
+
+Employees level up based on total points:
+
+```javascript
+// From recognitionService.js:116-123
+calculateLevel(totalPoints) {
+  if (totalPoints >= 500) return 5;
+  if (totalPoints >= 300) return 4;
+  if (totalPoints >= 150) return 3;
+  if (totalPoints >= 50) return 2;
+  return 1;
+}
+```
+
+### Level Progression
+
+| Level | Points Required | Rewards |
+|-------|----------------|----------|
+| 1 | 0-49 | Starting level |
+| 2 | 50-149 | +10 bonus points |
+| 3 | 150-299 | +15 bonus points, special badge |
+| 4 | 300-499 | +20 bonus points, priority support |
+| 5 | 500+ | +25 bonus points, VIP status |
+
+### Level Up Bonus
+
+```javascript
+// From diagnosticService.js:1020-1029
+const levelUp = employee.gamification.level > oldLevel;
+if (levelUp) {
+  totalPoints += 25; // Bonus for level up
+  employee.gamification.totalPoints += 25;
+  newBadges.push({
+    name: `Nivel ${employee.gamification.level}`,
+    description: `Alcanzó el nivel ${employee.gamification.level}`,
+    earnedAt: new Date()
+  });
+}
+```
+
+---
+
+## Leaderboards
+
+### Hospital-Wide Ranking
+
+```javascript
+// From diagnosticService.js:437-486
+async getGamificationStats(employeeId) {
+  const employee = await Employee.findById(employeeId);
+  
+  // Get hospital ranking
+  const hospitalEmployees = await Employee.find({
+    hospitalId: employee.hospitalId,
+    isActive: true
+  }).sort({ 'gamification.totalPoints': -1 });
+  
+  const rank = hospitalEmployees.findIndex(
+    emp => emp._id.toString() === employeeId
+  ) + 1;
+  
+  const percentile = Math.round((1 - (rank / hospitalEmployees.length)) * 100);
+  
+  return {
+    ranking: {
+      position: rank,
+      totalEmployees: hospitalEmployees.length,
+      percentile
+    },
+    gamification: {
+      totalPoints: employee.gamification.totalPoints,
+      currentLevel: employee.gamification.level,
+      currentStreak: employee.gamification.currentStreak,
+      badges: employee.gamification.badges.length
+    }
+  };
+}
+```
+
+### API Usage
+
+```javascript
+GET /api/recognition/stats/:employeeId
+
+Response:
+{
+  "employee": {
+    "name": "María González",
+    "department": "urgencias",
+    "position": "Enfermera"
+  },
+  "gamification": {
+    "totalPoints": 245,
+    "currentLevel": 3,
+    "currentStreak": 12,
+    "maxStreak": 15,
+    "badges": 6,
+    "badgesList": [
+      {
+        "name": "Participación Semanal",
+        "earnedAt": "2024-01-08T10:00:00Z"
+      }
+    ]
+  },
+  "ranking": {
+    "position": 8,
+    "totalEmployees": 156,
+    "percentile": 95
+  },
+  "progress": {
+    "currentLevelPoints": 200,
+    "nextLevelPoints": 300,
+    "progressPercentage": 45,
+    "pointsToNextLevel": 55
+  }
+}
+```
+
+### Leaderboard Endpoint
+
+```javascript
+GET /api/recognition/ranking/:hospitalId?department=urgencias&limit=10
+
+Response:
+{
+  "leaderboard": [
+    {
+      "rank": 1,
+      "employee": {
+        "name": "Carlos Ruiz",
+        "position": "Médico",
+        "department": "urgencias"
+      },
+      "points": 580,
+      "level": 5,
+      "badges": 12
+    },
+    {
+      "rank": 2,
+      "employee": {
+        "name": "Ana Torres",
+        "position": "Enfermera",
+        "department": "urgencias"
+      },
+      "points": 465,
+      "level": 4,
+      "badges": 9
+    }
+  ]
+}
+```
+
+---
+
+## Recognition Wall
+
+### Public Recognition Feed
+
+Display recent achievements to motivate the entire team:
+
+```javascript
+// From recognitionService.js:70-92
+async getRecognitionWall(hospitalId, limit = 10) {
+  const recognitions = await Recognition.find({ isPublic: true })
+    .populate({
+      path: 'employeeId',
+      match: { hospitalId },
+      select: 'personalInfo.name jobInfo.position jobInfo.department'
+    })
+    .sort({ issuedAt: -1 })
+    .limit(limit);
+  
+  // Filter recognitions where employee matches hospital
+  const filteredRecognitions = recognitions.filter(r => r.employeeId);
+  
+  return filteredRecognitions;
+}
+```
+
+### API Usage
+
+```javascript
+GET /api/recognition/wall/:hospitalId?limit=20
+
+Response:
+{
+  "recognitions": [
+    {
+      "_id": "507f1f77bcf86cd799439088",
+      "employee": {
+        "name": "Laura Mendez",
+        "position": "Enfermera",
+        "department": "urgencias"
+      },
+      "title": "¡Curso Completado!",
+      "description": "Has terminado exitosamente tu capacitación",
+      "pointsAwarded": 20,
+      "badgeEarned": "aprendiz",
+      "issuedAt": "2024-01-15T16:45:00Z"
+    },
+    {
+      "_id": "507f1f77bcf86cd799439099",
+      "employee": {
+        "name": "Pedro Sánchez",
+        "position": "Médico",
+        "department": "consulta_externa"
+      },
+      "title": "¡Empleado del Mes!",
+      "description": "Reconocimiento por tu excelente desempeño",
+      "pointsAwarded": 100,
+      "badgeEarned": "estrella",
+      "issuedAt": "2024-01-15T09:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Gamification Statistics
+
+### Employee Game Stats
+
+```javascript
+// From recognitionService.js:94-114
+async getEmployeeGameStats(employeeId) {
+  const recognitions = await Recognition.find({ employeeId });
+  
+  const stats = {
+    totalPoints: recognitions.reduce((sum, r) => sum + r.pointsAwarded, 0),
+    totalRecognitions: recognitions.length,
+    badges: [...new Set(recognitions.map(r => r.badgeEarned).filter(Boolean))],
+    level: this.calculateLevel(recognitions.reduce((sum, r) => sum + r.pointsAwarded, 0)),
+    recentAchievements: recognitions.slice(-5)
+  };
+  
+  return stats;
+}
+```
+
+### Upcoming Milestones
+
+Show employees what they're working towards:
+
+```javascript
+// From diagnosticService.js:489-512
+getUpcomingMilestones(employee) {
+  const milestones = [];
+  
+  // Streak milestone
+  const nextStreakMilestone = [10, 15, 30].find(
+    ms => ms > employee.gamification.currentStreak
+  );
+  if (nextStreakMilestone) {
+    milestones.push({
+      name: `Racha de ${nextStreakMilestone} días`,
+      progress: Math.round(
+        (employee.gamification.currentStreak / nextStreakMilestone) * 100
+      ),
+      reward: `${nextStreakMilestone * 2} puntos bonus`
+    });
+  }
+  
+  // Level milestone
+  if (employee.gamification.level < 10) {
+    milestones.push({
+      name: `Nivel ${employee.gamification.level + 1}`,
+      progress: Math.round(
+        ((employee.gamification.totalPoints % 100) / 100) * 100
+      ),
+      reward: 'Nueva insignia'
+    });
+  }
+  
+  return milestones.slice(0, 2);
+}
+```
+
+---
+
+## Streak Tracking
+
+### Daily Streak System
+
+Track consecutive days of participation:
+
+```javascript
+// From Employee model (implied from diagnosticService.js)
+employee.updateStreak(); // Method called after survey completion
+
+// Streak logic:
+// - Increments currentStreak if activity today
+// - Resets to 1 if gap > 1 day
+// - Updates maxStreak if currentStreak exceeds it
+```
+
+### Streak Rewards
+
+| Streak Length | Reward |
+|---------------|--------|
+| 7 days | "Participación Semanal" badge + 15 points |
+| 14 days | 20 bonus points |
+| 30 days | "Participación Mensual" badge + 50 points |
+| 60 days | 100 bonus points |
+| 90 days | Special "Dedicación" badge + 150 points |
+
+---
+
+## Integration with Other Modules
+
+### Diagnostic Module Integration
+
+```javascript
+// From diagnosticService.js:242-260
+async updateEmployeeMetrics(employee, responses, riskAnalysis) {
+  // Update wellness metrics
+  employee.wellnessMetrics = {
+    currentMoodScore: this.moodToScore(responses.moodToday) * 5,
+    riskLevel: riskAnalysis.riskLevel
+  };
+  
+  // Update gamification
+  employee.gamification.totalPoints += 5;
+  employee.updateStreak();
+  employee.gamification.level = employee.calculateLevel();
+  
+  // Check for badges
+  await this.checkAndAwardBadges(employee);
+  
+  await employee.save();
+}
+```
+
+### Microlearning Integration
+
+```javascript
+// Automatic recognition on course completion
+await recognitionService.grantRecognition(
+  employeeId,
+  'curso_terminado',
+  {
+    courseTitle: course.title,
+    score: finalScore
+  }
+);
+```
+
+---
+
+## API Reference
+
+### Endpoints
+
+<CodeGroup>
+```javascript POST /api/recognition/grant
+// Grant recognition to employee
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "type": "empleado_mes",
+  "data": { "reason": "Exceptional patient care" }
+}
+```
+
+```javascript GET /api/recognition/wall/:hospitalId
+// Get public recognition feed
+GET /api/recognition/wall/507f1f77bcf86cd799439011?limit=20
+```
+
+```javascript GET /api/recognition/stats/:employeeId
+// Get employee gamification stats
+GET /api/recognition/stats/507f1f77bcf86cd799439011
+```
+
+```javascript GET /api/recognition/ranking/:hospitalId
+// Get leaderboard
+GET /api/recognition/ranking/507f1f77bcf86cd799439011?department=urgencias&limit=10
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Celebrate Small Wins" icon="party-horn">
+    Recognize every achievement, no matter how small, to build momentum
+  </Card>
+  <Card title="Public Recognition" icon="megaphone">
+    Make achievements visible to create a culture of appreciation
+  </Card>
+  <Card title="Fair Competition" icon="scale-balanced">
+    Segment leaderboards by department to ensure fair comparison
+  </Card>
+  <Card title="Meaningful Rewards" icon="gift">
+    Connect points to real rewards (time off, parking, etc.)
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Diagnostic Module" icon="chart-line" href="/modules/diagnostic">
+    See how surveys contribute to gamification
+  </Card>
+  <Card title="Microlearning" icon="graduation-cap" href="/modules/microlearning">
+    Learn about course completion rewards
+  </Card>
+  <Card title="Correlation Analytics" icon="chart-mixed" href="/modules/correlation">
+    Analyze impact of recognition on performance
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/recognition/grant">
+    Complete API documentation for the Recognition module
+  </Card>
+</CardGroup>

@@ -1,0 +1,335 @@
+---
+title: 'Chat Completion'
+description: 'Generate AI responses using Claude with customizable prompt templates'
+api: 'POST /api/chat/complete'
+---
+
+## Overview
+
+Generate AI-powered chat completions using Claude AI with customizable prompt templates. The system combines system prompts with user input, applies security validation, and tracks conversation history.
+
+## Authentication
+
+This endpoint requires authentication.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Rate Limiting
+
+This endpoint is rate-limited to:
+
+- **10 requests per minute** per user
+- Responses include `X-RateLimit-*` headers
+- Returns 429 status when limit is exceeded
+
+## Request Body
+
+<ParamField body="templateId" type="string" required>
+  MongoDB ObjectId of the prompt template to use (24-character hex string)
+</ParamField>
+
+<ParamField body="userPrompt" type="string" required>
+  The user's input prompt. Must be between 5-2000 characters.
+</ParamField>
+
+<ParamField body="temperature" type="number">
+  Controls randomness in responses (0.0-1.0). Lower values are more deterministic. Default: varies by template
+</ParamField>
+
+<ParamField body="maxTokens" type="number">
+  Maximum tokens to generate in the response. Default: varies by template
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the completion was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data.response" type="string">
+  The AI-generated response text
+</ResponseField>
+
+<ResponseField name="data.conversationId" type="string">
+  MongoDB ObjectId of the created conversation record
+</ResponseField>
+
+<ResponseField name="data.tokenUsage" type="object">
+  Token consumption breakdown
+  
+  <Expandable title="tokenUsage properties">
+    <ResponseField name="input" type="number">
+      Input tokens consumed
+    </ResponseField>
+    
+    <ResponseField name="output" type="number">
+      Output tokens generated
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total tokens consumed (input + output)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.metadata" type="object">
+  Response metadata
+  
+  <Expandable title="metadata properties">
+    <ResponseField name="model" type="string">
+      Claude model used (e.g., "claude-3-sonnet-20240229")
+    </ResponseField>
+    
+    <ResponseField name="responseTime" type="number">
+      Response generation time in milliseconds
+    </ResponseField>
+    
+    <ResponseField name="temperature" type="number">
+      Temperature parameter used
+    </ResponseField>
+    
+    <ResponseField name="maxTokens" type="number">
+      Max tokens parameter used
+    </ResponseField>
+    
+    <ResponseField name="template" type="string">
+      Name of the prompt template used
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.cuido.com/api/chat/complete \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "templateId": "65a1b2c3d4e5f6a7b8c9d0e1",
+    "userPrompt": "Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo",
+    "temperature": 0.7,
+    "maxTokens": 500
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/chat/complete', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    templateId: '65a1b2c3d4e5f6a7b8c9d0e1',
+    userPrompt: 'Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo',
+    temperature: 0.7,
+    maxTokens: 500
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python
+import requests
+
+url = "https://api.cuido.com/api/chat/complete"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "templateId": "65a1b2c3d4e5f6a7b8c9d0e1",
+    "userPrompt": "Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo",
+    "temperature": 0.7,
+    "maxTokens": 500
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Respuesta generada exitosamente",
+  "data": {
+    "response": "Basado en las métricas de satisfacción del personal, se observa un promedio de 7.2/10, lo cual es positivo pero tiene margen de mejora. Las principales acciones recomendadas son:\n\n1. Implementar sesiones de escucha activa mensuales con cada departamento\n2. Revisar la carga de trabajo en urgencias donde se detecta mayor insatisfacción\n3. Expandir el programa de reconocimientos, actualmente con buena aceptación\n4. Crear espacios de descanso mejorados para el personal de turno\n\nEstas acciones, implementadas gradualmente, podrían elevar la satisfacción al rango 8-8.5 en 3 meses.",
+    "conversationId": "65a1b2c3d4e5f6a7b8c9d0e8",
+    "tokenUsage": {
+      "input": 245,
+      "output": 187,
+      "total": 432
+    },
+    "metadata": {
+      "model": "claude-3-sonnet-20240229",
+      "responseTime": 2350,
+      "temperature": 0.7,
+      "maxTokens": 500,
+      "template": "Análisis de RRHH en Salud"
+    }
+  }
+}
+```
+
+## Security & Validation
+
+The chat service (`src/services/promptService.js:94`) implements multiple security layers:
+
+### Input Validation
+
+1. **Length check**: 5-2000 characters
+2. **Type validation**: Must be string
+3. **Sanitization**: Removes excess whitespace
+
+### Prompt Injection Prevention
+
+Blocked phrases (`src/services/promptService.js:112`):
+
+- "ignore previous instructions"
+- "ignore all previous"
+- "system:"
+- Code blocks (```)
+- Script tags
+- JavaScript/data URIs
+
+Attempting to inject malicious prompts returns a 400 error.
+
+## Prompt Combination
+
+The service combines prompts in this structure (`src/services/promptService.js:9`):
+
+```
+1. SYSTEM BASE
+   - Role definition
+   - Core rules (no hallucination, response limits)
+   
+2. TEMPLATE INSTRUCTIONS
+   - Specific system instructions from template
+   - Template content
+   
+3. USER QUERY
+   - Sanitized user input
+   
+4. OUTPUT FORMAT
+   - Response structure requirements
+   - Character limits
+```
+
+## Conversation Tracking
+
+Each completion creates a `Conversation` document (`src/controllers/chatController.js:48`) with:
+
+- User and assistant messages
+- Token counts per message
+- Template reference
+- Metadata (combined prompt, response time, etc.)
+- Total token usage
+
+## Error Responses
+
+<Tabs>
+  <Tab title="400 Bad Request">
+    ```json
+    {
+      "success": false,
+      "message": "Validation error",
+      "errors": [
+        {
+          "field": "userPrompt",
+          "message": "El prompt debe tener al menos 5 caracteres"
+        }
+      ]
+    }
+    ```
+  </Tab>
+  
+  <Tab title="400 Injection Detected">
+    ```json
+    {
+      "success": false,
+      "message": "El prompt contiene contenido no permitido"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Template Not Found">
+    ```json
+    {
+      "success": false,
+      "message": "Plantilla no encontrada"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="429 Rate Limited">
+    ```json
+    {
+      "success": false,
+      "message": "Límite de solicitudes de chat excedido. Espera un minuto.",
+      "retryAfter": 60
+    }
+    ```
+  </Tab>
+  
+  <Tab title="500 Server Error">
+    ```json
+    {
+      "success": false,
+      "message": "Error generando respuesta"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+1. **Choose appropriate temperature**:
+   - 0.0-0.3: Factual, deterministic (analytics, reports)
+   - 0.4-0.7: Balanced (general assistance)
+   - 0.8-1.0: Creative (brainstorming, ideas)
+
+2. **Set reasonable maxTokens**:
+   - Short answers: 200-300
+   - Standard: 500-800
+   - Long form: 1000-1500
+
+3. **Use specific templates**:
+   - HR analysis template for employee metrics
+   - Quality template for clinical indicators
+   - General template for miscellaneous queries
+
+4. **Handle rate limits gracefully**:
+   - Implement exponential backoff
+   - Show user-friendly messages
+   - Queue requests if needed
+
+## Source Code References
+
+- Route: `src/routes/chatRoutes.js:51`
+- Controller: `src/controllers/chatController.js:7`
+- Prompt Service: `src/services/promptService.js:9`
+- Validation: `src/services/promptService.js:94`
+- Security: `src/services/promptService.js:112`
+- Claude Service: `src/services/claudeService.js`
+- Model: `src/models/Conversation.js`

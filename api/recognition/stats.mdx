@@ -1,0 +1,297 @@
+---
+title: 'Employee Game Stats'
+description: 'Get gamification statistics and achievements for an employee'
+api: 'GET /api/recognition/stats/:employeeId'
+---
+
+## Overview
+
+Retrieve comprehensive gamification statistics for an employee, including total points, level, badges earned, and recent achievements.
+
+## Authentication
+
+This endpoint requires authentication.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Endpoint
+
+```
+GET /api/recognition/stats/:employeeId
+```
+
+## Path Parameters
+
+<ParamField path="employeeId" type="string" required>
+  The MongoDB ObjectId of the employee
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data.stats" type="object">
+  Gamification statistics object
+  
+  <Expandable title="stats properties">
+    <ResponseField name="totalPoints" type="number">
+      Total gamification points accumulated
+    </ResponseField>
+    
+    <ResponseField name="totalRecognitions" type="number">
+      Total number of recognitions received
+    </ResponseField>
+    
+    <ResponseField name="badges" type="array">
+      Array of unique badge names earned (e.g., ["participativo", "aprendiz", "estrella"])
+    </ResponseField>
+    
+    <ResponseField name="level" type="number">
+      Current gamification level (1-5) based on total points
+    </ResponseField>
+    
+    <ResponseField name="recentAchievements" type="array">
+      Array of the 5 most recent recognition objects
+      
+      <Expandable title="achievement properties">
+        <ResponseField name="_id" type="string">
+          Recognition unique identifier
+        </ResponseField>
+        
+        <ResponseField name="recognitionType" type="string">
+          Type of recognition
+        </ResponseField>
+        
+        <ResponseField name="title" type="string">
+          Recognition title
+        </ResponseField>
+        
+        <ResponseField name="description" type="string">
+          Recognition description
+        </ResponseField>
+        
+        <ResponseField name="pointsAwarded" type="number">
+          Points awarded
+        </ResponseField>
+        
+        <ResponseField name="badgeEarned" type="string">
+          Badge earned
+        </ResponseField>
+        
+        <ResponseField name="issuedAt" type="string">
+          ISO 8601 timestamp
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Level System
+
+Employee levels are calculated based on total points (`src/services/recognitionService.js:116`):
+
+| Level | Points Required |
+|-------|----------------|
+| 1 | 0 - 49 |
+| 2 | 50 - 149 |
+| 3 | 150 - 299 |
+| 4 | 300 - 499 |
+| 5 | 500+ |
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.cuido.com/api/recognition/stats/65a1b2c3d4e5f6a7b8c9d0e2 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const employeeId = '65a1b2c3d4e5f6a7b8c9d0e2';
+const response = await fetch(`https://api.cuido.com/api/recognition/stats/${employeeId}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+console.log(data.data.stats);
+```
+
+```python Python
+import requests
+
+employee_id = "65a1b2c3d4e5f6a7b8c9d0e2"
+url = f"https://api.cuido.com/api/recognition/stats/{employee_id}"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN"
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Estadísticas de gamificación obtenidas",
+  "data": {
+    "stats": {
+      "totalPoints": 325,
+      "totalRecognitions": 18,
+      "badges": [
+        "participativo",
+        "aprendiz",
+        "estrella"
+      ],
+      "level": 4,
+      "recentAchievements": [
+        {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e7",
+          "recognitionType": "empleado_mes",
+          "title": "¡Empleado del Mes!",
+          "description": "Reconocimiento por tu excelente desempeño",
+          "pointsAwarded": 100,
+          "badgeEarned": "estrella",
+          "issuedAt": "2024-01-15T10:30:00.000Z"
+        },
+        {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e8",
+          "recognitionType": "curso_terminado",
+          "title": "¡Curso Completado!",
+          "description": "Has terminado exitosamente tu capacitación",
+          "pointsAwarded": 20,
+          "badgeEarned": "aprendiz",
+          "issuedAt": "2024-01-10T14:20:00.000Z"
+        },
+        {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e9",
+          "recognitionType": "curso_terminado",
+          "title": "¡Curso Completado!",
+          "description": "Has terminado exitosamente tu capacitación",
+          "pointsAwarded": 20,
+          "badgeEarned": "aprendiz",
+          "issuedAt": "2024-01-05T09:15:00.000Z"
+        },
+        {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0ea",
+          "recognitionType": "encuesta_completada",
+          "title": "¡Encuesta Completada!",
+          "description": "Gracias por compartir tu feedback semanal",
+          "pointsAwarded": 5,
+          "badgeEarned": "participativo",
+          "issuedAt": "2024-01-02T11:30:00.000Z"
+        },
+        {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0eb",
+          "recognitionType": "encuesta_completada",
+          "title": "¡Encuesta Completada!",
+          "description": "Gracias por compartir tu feedback semanal",
+          "pointsAwarded": 5,
+          "badgeEarned": "participativo",
+          "issuedAt": "2023-12-28T08:45:00.000Z"
+        }
+      ]
+    }
+  }
+}
+```
+
+## Calculation Logic
+
+The stats service (`src/services/recognitionService.js:98`) performs:
+
+1. **Query all recognitions** for the employee
+2. **Sum points**: Reduce all `pointsAwarded` values
+3. **Count recognitions**: Total array length
+4. **Extract unique badges**: Filter and deduplicate `badgeEarned` values
+5. **Calculate level**: Apply level formula based on total points
+6. **Get recent**: Slice last 5 achievements
+
+## Use Cases
+
+1. **Employee Dashboard**: Display personal gamification progress
+2. **Leaderboards**: Compare stats across employees
+3. **Progress Tracking**: Motivate employees to reach next level
+4. **Achievement Showcase**: Display badges and recent wins
+5. **HR Analytics**: Track engagement through gamification metrics
+
+## Error Responses
+
+<Tabs>
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Not Found">
+    ```json
+    {
+      "success": false,
+      "message": "Empleado no encontrado"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="500 Server Error">
+    ```json
+    {
+      "success": false,
+      "message": "Error obteniendo estadísticas de gamificación"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Related Endpoints
+
+For hospital-wide rankings, use:
+- **GET** `/api/recognition/ranking/:hospitalId` - Get top employees by points
+
+## Frontend Integration Tips
+
+```javascript
+// Display progress to next level
+function getNextLevelProgress(stats) {
+  const levelThresholds = [0, 50, 150, 300, 500];
+  const currentLevel = stats.level;
+  const currentPoints = stats.totalPoints;
+  
+  if (currentLevel === 5) {
+    return { progress: 100, pointsToNext: 0 };
+  }
+  
+  const currentThreshold = levelThresholds[currentLevel - 1];
+  const nextThreshold = levelThresholds[currentLevel];
+  const pointsInLevel = currentPoints - currentThreshold;
+  const pointsNeeded = nextThreshold - currentThreshold;
+  
+  return {
+    progress: (pointsInLevel / pointsNeeded) * 100,
+    pointsToNext: nextThreshold - currentPoints
+  };
+}
+```
+
+## Source Code References
+
+- Route: `src/routes/recognitionRoutes.js:21`
+- Controller: `src/controllers/recognitionController.js:25`
+- Service: `src/services/recognitionService.js:97`
+- Level Calculation: `src/services/recognitionService.js:116`
+- Model: `src/models/Recognition.js`

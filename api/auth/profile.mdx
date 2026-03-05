@@ -1,0 +1,165 @@
+---
+title: 'Get Profile'
+description: 'Retrieve the authenticated user profile'
+api: 'GET /api/auth/profile'
+---
+
+Retrieves the profile information for the currently authenticated user.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token obtained from login or register endpoints.
+  
+  Format: `Bearer {token}`
+</ParamField>
+
+<Info>
+  This endpoint requires authentication. Include the JWT token in the Authorization header.
+</Info>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message: "Perfil obtenido exitosamente"
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="user" type="object">
+    <ResponseField name="_id" type="string">
+      Unique user identifier
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      User's full name
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      User's email address
+    </ResponseField>
+    <ResponseField name="role" type="string">
+      User's role. Possible values: "user", "admin", "system"
+    </ResponseField>
+    <ResponseField name="isActive" type="boolean">
+      Whether the user account is active
+    </ResponseField>
+    <ResponseField name="lastLogin" type="string">
+      ISO 8601 timestamp of last login
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of account creation
+    </ResponseField>
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last update
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="401 - Token Expired">
+  ```json
+  {
+    "success": false,
+    "message": "Token expirado"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401 - Invalid Token">
+  ```json
+  {
+    "success": false,
+    "message": "Token inválido"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401 - No Token Provided">
+  ```json
+  {
+    "success": false,
+    "message": "No se proporcionó token de autenticación"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404 - User Not Found">
+  ```json
+  {
+    "success": false,
+    "message": "Usuario no encontrado"
+  }
+  ```
+  Returned when the user account has been deleted or deactivated.
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET https://api.cuido.com/api/auth/profile \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+```javascript JavaScript
+const token = localStorage.getItem('token');
+
+const response = await fetch('https://api.cuido.com/api/auth/profile', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+
+const data = await response.json();
+console.log(data.data.user);
+```
+
+```python Python
+import requests
+
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+response = requests.get(
+    'https://api.cuido.com/api/auth/profile',
+    headers={
+        'Authorization': f'Bearer {token}'
+    }
+)
+
+data = response.json()
+print(data['data']['user'])
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Perfil obtenido exitosamente",
+  "data": {
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Juan Pérez",
+      "email": "juan@example.com",
+      "role": "user",
+      "isActive": true,
+      "lastLogin": "2026-03-05T10:35:00.000Z",
+      "createdAt": "2026-03-05T10:30:00.000Z",
+      "updatedAt": "2026-03-05T10:35:00.000Z"
+    }
+  }
+}
+```
+
+## Notes
+
+- The password field is never returned in the response for security reasons
+- The user ID is extracted from the JWT token payload
+- Tokens expire after 7 days. After expiration, the user must log in again to obtain a new token

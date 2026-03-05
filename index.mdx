@@ -1,97 +1,169 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "CUIDO Backend Documentation"
+description: "AI-powered healthcare workforce management backend with intelligent diagnostics, virtual mentorship, and employee wellness tracking"
 ---
 
-## Setting up
+<div style={{
+  background: 'linear-gradient(135deg, #020627 0%, #11161e 100%)',
+  borderRadius: '12px',
+  padding: '3rem 2rem',
+  marginBottom: '2rem',
+  border: '1px solid rgba(96,99,146,1)'
+}}>
+  <h1 style={{
+    fontSize: '48px',
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: '1rem',
+    fontFamily: 'Inter'
+  }}>
+    CUIDO Backend
+  </h1>
+  <p style={{
+    fontSize: '20px',
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: '2rem',
+    fontFamily: 'Inter'
+  }}>
+    Transform healthcare workforce management with AI-powered diagnostics, real-time wellness monitoring, and intelligent automation.
+  </p>
+  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+    <a href="/quickstart" style={{
+      background: '#238636',
+      color: '#ffffff',
+      padding: '0.75rem 1.5rem',
+      borderRadius: '6px',
+      textDecoration: 'none',
+      fontWeight: '600',
+      fontFamily: 'Inter',
+      display: 'inline-block'
+    }}>
+      Get Started →
+    </a>
+    <a href="/api/auth/register" style={{
+      background: 'transparent',
+      color: '#ffffff',
+      padding: '0.75rem 1.5rem',
+      borderRadius: '6px',
+      border: '1px solid rgba(96,99,146,1)',
+      textDecoration: 'none',
+      fontWeight: '600',
+      fontFamily: 'Inter',
+      display: 'inline-block'
+    }}>
+      View API Reference
+    </a>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Key Features
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Intelligent Diagnostics" icon="brain" href="/modules/diagnostic">
+    AI-powered sentiment analysis and risk assessment with real-time wellness heatmaps
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Virtual Mentorship" icon="user-graduate" href="/modules/mentorship">
+    24/7 AI mentor powered by Claude for healthcare professionals
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Microlearning Platform" icon="graduation-cap" href="/modules/microlearning">
+    Personalized course recommendations with automated skill gap analysis
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Gamification System" icon="trophy" href="/modules/recognition">
+    Points, badges, levels, and leaderboards to boost engagement
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Quick Start
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="Install Dependencies">
+    Clone the repository and install required packages
+    ```bash
+    git clone https://github.com/JuanMartinezL/CUIDO_Back.git
+    cd CUIDO_Back
+    npm install
+    ```
+  </Step>
+  
+  <Step title="Configure Environment">
+    Set up your environment variables including MongoDB and Anthropic API key
+    ```bash
+    cp .env.example .env
+    # Edit .env with your configuration
+    ```
+  </Step>
+  
+  <Step title="Start the Server">
+    Run the development server
+    ```bash
+    npm run dev
+    ```
+  </Step>
+</Steps>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Core Modules
 
-## Need inspiration?
+Explore the five intelligent modules that power CUIDO:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Diagnostic Module" icon="stethoscope" href="/modules/diagnostic">
+    Quick surveys, sentiment analysis, and automated risk detection
+  </Card>
+  <Card title="Mentorship Module" icon="comments" href="/modules/mentorship">
+    AI-powered virtual mentor for career guidance and support
+  </Card>
+  <Card title="Microlearning Module" icon="book-open" href="/modules/microlearning">
+    Bite-sized courses with personalized learning paths
+  </Card>
+  <Card title="Recognition Module" icon="award" href="/modules/recognition">
+    Employee recognition and gamification features
+  </Card>
+  <Card title="Correlation Module" icon="chart-line" href="/modules/correlation">
+    Performance metrics correlation and predictive analytics
+  </Card>
+  <Card title="Real-time Notifications" icon="bell" href="/concepts/architecture">
+    Socket.IO integration for instant alerts and updates
+  </Card>
+</CardGroup>
+
+## API Reference
+
+Access comprehensive API documentation for all endpoints:
+
+<CardGroup cols={3}>
+  <Card title="Authentication" icon="lock" href="/api/auth/register">
+    JWT-based auth with role-based access control
+  </Card>
+  <Card title="Employees" icon="users" href="/api/employees/overview">
+    Employee management and wellness tracking
+  </Card>
+  <Card title="Diagnostics" icon="heart-pulse" href="/api/diagnostic/survey">
+    Wellness surveys and risk analysis
+  </Card>
+  <Card title="Mentorship" icon="user-tie" href="/api/mentorship/ask">
+    AI mentor conversation endpoints
+  </Card>
+  <Card title="Microlearning" icon="laptop" href="/api/microlearning/courses">
+    Course management and progress tracking
+  </Card>
+  <Card title="Recognition" icon="star" href="/api/recognition/grant">
+    Recognition and gamification APIs
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+Built with modern technologies for scalability and performance:
+
+- **Backend**: Node.js + Express
+- **Database**: MongoDB + Mongoose
+- **AI**: Claude API (Anthropic)
+- **Authentication**: JWT + bcrypt
+- **Real-time**: Socket.IO
+- **Validation**: Zod
+- **Logging**: Winston
+- **Testing**: Jest + Supertest
+
+<Note>
+  CUIDO Backend requires Node.js >= 18.0.0 and MongoDB >= 5.0
+</Note>

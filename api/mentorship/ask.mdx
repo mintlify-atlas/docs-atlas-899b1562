@@ -1,0 +1,213 @@
+---
+title: 'Ask Mentor'
+description: 'Get 24/7 virtual mentorship advice using Claude AI for healthcare workers'
+api: 'POST /api/mentorship/ask'
+---
+
+## Overview
+
+The mentorship endpoint provides AI-powered guidance and support for healthcare workers. Using Claude AI, it offers emotional and professional advice, practical solutions for day-to-day situations, help with ethical dilemmas, and motivational support.
+
+## Authentication
+
+This endpoint requires authentication. Include a valid JWT token in the Authorization header.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Request Body
+
+<ParamField body="question" type="string" required>
+  The question or concern from the healthcare worker. Must be between 10-500 characters.
+</ParamField>
+
+<ParamField body="context" type="object">
+  Additional context to personalize the mentorship response.
+  
+  <Expandable title="context properties">
+    <ParamField body="context.position" type="string">
+      The employee's job position (e.g., "medico", "enfermero", "auxiliar_enfermeria")
+    </ParamField>
+    
+    <ParamField body="context.department" type="string">
+      The employee's department (e.g., "urgencias", "hospitalizacion")
+    </ParamField>
+    
+    <ParamField body="context.area" type="string">
+      Area of consultation. Options: `profesional`, `emocional`, `etico`, `comunicacion`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="data properties">
+    <ResponseField name="data.response" type="object">
+      The mentorship response object
+      
+      <Expandable title="response properties">
+        <ResponseField name="data.response.response" type="string">
+          The AI-generated mentorship advice (max 200 words, ends with a follow-up question)
+        </ResponseField>
+        
+        <ResponseField name="data.response.timestamp" type="string">
+          ISO 8601 timestamp of when the response was generated
+        </ResponseField>
+        
+        <ResponseField name="data.response.context" type="string">
+          The area of consultation or "general"
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## AI Behavior
+
+The CUIDO mentor is configured to:
+
+- Provide emotional and professional support for healthcare workers
+- Give practical, applicable advice for real-world situations
+- Help with ethical dilemmas and patient communication
+- Offer motivational support
+- Respond in Spanish with a warm, empathetic tone
+- Keep responses under 200 words
+- Recommend consulting supervisors for serious medical issues
+- Always end with a follow-up question
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.cuido.com/api/mentorship/ask \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Me siento agotado después de turnos largos. ¿Cómo puedo manejar mejor el estrés?",
+    "context": {
+      "position": "enfermero",
+      "department": "urgencias",
+      "area": "emocional"
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/mentorship/ask', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    question: 'Me siento agotado después de turnos largos. ¿Cómo puedo manejar mejor el estrés?',
+    context: {
+      position: 'enfermero',
+      department: 'urgencias',
+      area: 'emocional'
+    }
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python
+import requests
+
+url = "https://api.cuido.com/api/mentorship/ask"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "question": "Me siento agotado después de turnos largos. ¿Cómo puedo manejar mejor el estrés?",
+    "context": {
+        "position": "enfermero",
+        "department": "urgencias",
+        "area": "emocional"
+    }
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Respuesta de mentoría generada",
+  "data": {
+    "response": {
+      "response": "Entiendo perfectamente lo que sientes. El agotamiento en urgencias es muy común. Te recomiendo: 1) Establece límites claros entre trabajo y vida personal, 2) Practica técnicas de respiración durante el turno (5 minutos cada 3 horas), 3) Comparte tus sentimientos con compañeros de confianza, 4) Considera hablar con tu supervisor sobre la rotación de turnos. Recuerda: cuidarte a ti mismo te permite cuidar mejor a los pacientes. ¿Has intentado alguna técnica de relajación que te haya funcionado antes?",
+      "timestamp": "2024-01-15T10:30:00.000Z",
+      "context": "emocional"
+    }
+  }
+}
+```
+
+## Error Responses
+
+<Tabs>
+  <Tab title="400 Bad Request">
+    ```json
+    {
+      "success": false,
+      "message": "Validation error",
+      "errors": [
+        {
+          "field": "question",
+          "message": "La pregunta debe tener al menos 10 caracteres"
+        }
+      ]
+    }
+    ```
+  </Tab>
+  
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="500 Server Error">
+    ```json
+    {
+      "success": false,
+      "message": "Error generando respuesta de mentoría"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Integration Details
+
+The mentorship service integrates with:
+
+- **Claude AI Service** (`src/services/claudeService.js:15`) - Generates AI responses with temperature 0.8 and max 800 tokens
+- **Logger** (`src/services/mentorshipService.js:22`) - Logs interactions for analytics
+
+## Source Code References
+
+- Route: `src/routes/mentorshipRoutes.js:12`
+- Controller: `src/controllers/mentorshipController.js:5`
+- Service: `src/services/mentorshipService.js:10`
+- Validator: `src/validators/cuidoValidators.js:32`

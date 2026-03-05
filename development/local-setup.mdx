@@ -1,0 +1,320 @@
+---
+title: 'Local Development Setup'
+description: 'Complete guide to setting up CUIDO Backend for local development'
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<CardGroup cols={3}>
+  <Card title="Node.js" icon="node-js">
+    Version >= 18.0.0
+  </Card>
+  <Card title="MongoDB" icon="database">
+    Version >= 5.0
+  </Card>
+  <Card title="npm" icon="box">
+    Version >= 8.0.0
+  </Card>
+</CardGroup>
+
+You'll also need an **Anthropic API Key** for Claude AI integration. Get one at [console.anthropic.com](https://console.anthropic.com).
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/JuanMartinezL/CUIDO_Back.git
+    cd CUIDO_Back
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required packages using npm:
+    ```bash
+    npm install
+    ```
+
+    This will install production dependencies including:
+    - **Express 5.1.0** - Web framework
+    - **Mongoose 8.18.0** - MongoDB ODM
+    - **@anthropic-ai/sdk** - Claude AI integration
+    - **Socket.io 4.8.1** - Real-time notifications
+    - **Winston 3.17.0** - Advanced logging
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in the root directory:
+
+    ```bash
+    touch .env
+    ```
+
+    Add the following configuration:
+
+    ```env .env
+    # Server Configuration
+    PORT=3000
+    NODE_ENV=development
+
+    # Database
+    MONGODB_URI=mongodb://localhost:27017/cuido-db
+
+    # Authentication
+    JWT_SECRET=your_jwt_secret_super_secure_256_bits_minimum
+
+    # Claude AI
+    ANTHROPIC_API_KEY=sk-ant-api03-your-api-key-here
+    CLAUDE_MODEL=claude-3-sonnet-20240229
+
+    # CORS & Security
+    ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+    SOCKET_IO_CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+
+    # Rate Limiting
+    RATE_LIMIT_WINDOW_MS=900000
+    RATE_LIMIT_MAX_REQUESTS=100
+
+    # Scheduled Tasks
+    ENABLE_CRON_JOBS=true
+    ```
+
+    <Warning>
+      The `ANTHROPIC_API_KEY` must start with `sk-ant-` or the server will not start. The application validates this on startup.
+    </Warning>
+  </Step>
+
+  <Step title="Initialize Database">
+    Seed the database with initial data:
+
+    <CodeGroup>
+      ```bash General Seed
+      npm run seed
+      ```
+
+      ```bash CUIDO-specific Seed
+      npm run seedCuido
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Start Development Server">
+    ```bash
+    npm run dev
+    ```
+
+    You should see:
+    ```
+    ✓ Servidor corriendo en puerto 3000 (development)
+    ✓ Conectado exitosamente a la base de datos
+    ✓ Conexión con Claude API validada exitosamente
+    ✓ Módulo de Diagnóstico Inteligente activado
+    ✓ Notificaciones en tiempo real habilitadas
+    ✓ Tareas programadas iniciadas
+    ```
+  </Step>
+</Steps>
+
+## Available Scripts
+
+The following npm scripts are available for development:
+
+### Development
+
+```bash
+# Start with auto-reload (nodemon)
+npm run dev
+```
+
+This uses **nodemon** to automatically restart the server when file changes are detected. Perfect for active development.
+
+### Production
+
+```bash
+# Start production server
+npm start
+```
+
+Runs the server with Node.js directly without auto-reload.
+
+### Database Management
+
+<CodeGroup>
+  ```bash General Seed
+  npm run seed
+  ```
+
+  ```bash CUIDO Seed
+  npm run seedCuido
+  ```
+</CodeGroup>
+
+### Code Quality
+
+<CodeGroup>
+  ```bash Lint Check
+  npm run lint
+  ```
+
+  ```bash Lint Fix
+  npm run lint:fix
+  ```
+</CodeGroup>
+
+ESLint is configured to check JavaScript files in the `src/` directory.
+
+### Docker Commands
+
+<CodeGroup>
+  ```bash Build Image
+  npm run docker:build
+  ```
+
+  ```bash Run Container
+  npm run docker:run
+  ```
+</CodeGroup>
+
+## Development Workflow
+
+### Using Nodemon
+
+The `npm run dev` command uses **nodemon** to watch for changes. By default, nodemon watches all `.js` files and automatically restarts the server when changes are detected.
+
+<Tip>
+  Nodemon ignores `node_modules/`, `.git/`, and other common directories automatically. Your changes in `src/` will trigger immediate reloads.
+</Tip>
+
+### Health Check
+
+Verify the server is running correctly:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "message": "Servicio funcionando correctamente",
+  "timestamp": "2026-03-05T21:43:00.000Z",
+  "environment": "development"
+}
+```
+
+## Debugging Tips
+
+### Enable Debug Logs
+
+The application uses **Winston** for logging. Logs are automatically written to:
+- Console (formatted based on `NODE_ENV`)
+- `logs/application-%DATE%.log` (rotated daily)
+- `logs/error-%DATE%.log` (errors only)
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="MongoDB Connection Failed">
+    Ensure MongoDB is running:
+    ```bash
+    # Check MongoDB status
+    sudo systemctl status mongod
+
+    # Start MongoDB if not running
+    sudo systemctl start mongod
+    ```
+
+    Verify the `MONGODB_URI` in your `.env` file is correct.
+  </Accordion>
+
+  <Accordion title="ANTHROPIC_API_KEY Invalid">
+    The application validates the API key format on startup. Ensure:
+    - Key starts with `sk-ant-`
+    - Key is active and has sufficient credits
+    - No extra whitespace in the `.env` file
+
+    Check startup logs for validation details:
+    ```
+    ANTHROPIC_API_KEY configurada: true
+    ANTHROPIC_API_KEY longitud: 108
+    ```
+  </Accordion>
+
+  <Accordion title="Port Already in Use">
+    If port 3000 is already in use:
+    ```bash
+    # Find process using port 3000
+    lsof -i :3000
+
+    # Kill the process
+    kill -9 <PID>
+    ```
+
+    Or change the `PORT` in your `.env` file.
+  </Accordion>
+
+  <Accordion title="Socket.IO Connection Issues">
+    Ensure CORS origins are properly configured:
+    ```env
+    SOCKET_IO_CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    ```
+
+    Check the browser console for CORS errors and add the origin to the allowed list.
+  </Accordion>
+</AccordionGroup>
+
+### Using Node.js Debugger
+
+Start the server with the Node.js debugger:
+
+```bash
+node --inspect server.js
+```
+
+Then attach your debugger:
+- **VS Code**: Use the built-in debugger with "Attach to Node Process"
+- **Chrome DevTools**: Navigate to `chrome://inspect`
+
+<Tip>
+  Add `debugger;` statements in your code to create breakpoints.
+</Tip>
+
+## Project Structure
+
+```
+CUIDO_Back/
+├── server.js           # Application entry point
+├── src/
+│   ├── app.js         # Express app configuration
+│   ├── config/        # Database and other configs
+│   ├── controllers/   # Request handlers
+│   ├── middleware/    # Custom middleware
+│   ├── models/        # Mongoose schemas
+│   ├── routes/        # API route definitions
+│   ├── services/      # Business logic & external services
+│   ├── utils/         # Helper functions
+│   └── validators/    # Input validation schemas
+├── scripts/           # Database seeding scripts
+└── logs/             # Application logs (auto-generated)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Learn how to write and run tests
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/development/deployment">
+    Deploy to production
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/login">
+    Explore available endpoints
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand system design
+  </Card>
+</CardGroup>

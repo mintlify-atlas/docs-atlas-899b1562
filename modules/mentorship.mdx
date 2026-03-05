@@ -1,0 +1,522 @@
+---
+title: 'Mentorship Module'
+description: '24/7 AI-powered virtual mentor using Claude to provide emotional support, professional guidance, and ethical advice for healthcare workers'
+---
+
+## Overview
+
+The Mentorship module provides healthcare professionals with instant access to CUIDO, an AI-powered virtual mentor specialized in rural healthcare challenges. Built on Claude's advanced language model, it offers empathetic, context-aware guidance available 24/7.
+
+<Note>
+CUIDO uses Claude 3.5 Sonnet with specialized prompt engineering to understand the unique challenges faced by rural healthcare workers in Latin America.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="24/7 Availability" icon="clock">
+    Always-on support for healthcare workers across all shifts and time zones
+  </Card>
+  <Card title="Context-Aware Responses" icon="brain">
+    Tailored advice based on position, department, and specific situation
+  </Card>
+  <Card title="Emotional Support" icon="heart">
+    Warm, empathetic responses focused on mental wellness and burnout prevention
+  </Card>
+  <Card title="Ethical Guidance" icon="scale-balanced">
+    Help navigating complex ethical dilemmas in patient care
+  </Card>
+</CardGroup>
+
+---
+
+## Claude AI Integration
+
+### Architecture
+
+The mentorship system is built on a sophisticated Claude integration:
+
+```javascript
+// From claudeService.js:1-214
+class ClaudeService {
+  constructor() {
+    this.anthropic = null;
+    this.model = 'claude-3-5-sonnet-20241022';
+    this.defaultMaxTokens = 1000;
+    this.defaultTemperature = 0.7;
+    this.initialized = false;
+  }
+  
+  // Lazy initialization - only initialize when first needed
+  initialize() {
+    if (this.initialized) return;
+    
+    if (!process.env.ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+      throw new Error('ANTHROPIC_API_KEY has invalid format');
+    }
+    
+    this.anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+    
+    this.initialized = true;
+  }
+}
+```
+
+### Response Generation
+
+<Steps>
+  <Step title="Initialize Claude Service">
+    The service uses lazy initialization for optimal performance:
+    
+    ```javascript
+    // From claudeService.js:48-150
+    async generateResponse(combinedPrompt, options = {}) {
+      this.initialize(); // Only runs once
+      
+      const {
+        maxTokens = this.defaultMaxTokens,
+        temperature = this.defaultTemperature,
+        systemMessage = null
+      } = options;
+      
+      const requestConfig = {
+        model: this.model,
+        max_tokens: maxTokens,
+        temperature: temperature,
+        messages: [{
+          role: 'user',
+          content: combinedPrompt
+        }]
+      };
+      
+      if (systemMessage) {
+        requestConfig.system = systemMessage;
+      }
+      
+      const response = await this.anthropic.messages.create(requestConfig);
+      
+      return {
+        response: response.content[0].text.trim(),
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+          totalTokens: response.usage.input_tokens + response.usage.output_tokens
+        },
+        metadata: {
+          model: this.model,
+          responseTime,
+          stopReason: response.stop_reason
+        }
+      };
+    }
+    ```
+  </Step>
+  
+  <Step title="Build Specialized Prompt">
+    The mentorship service constructs context-rich prompts:
+    
+    ```javascript
+    // From mentorshipService.js:40-72
+    buildMentorshipSystemPrompt() {
+      return `Eres CUIDO, un mentor virtual especializado en salud rural. Tu función es:
+      
+      1. Brindar acompañamiento emocional y profesional a trabajadores de la salud
+      2. Dar consejos prácticos para situaciones del día a día
+      3. Ayudar con dilemas éticos y comunicación con pacientes
+      4. Ofrecer apoyo motivacional
+      
+      IMPORTANTE:
+      - Responde en español con tono cálido y empático
+      - Máximo 200 palabras por respuesta
+      - Si es algo médico grave, recomienda consultar con supervisor
+      - Enfócate en lo práctico y aplicable
+      - Termina siempre con una pregunta de seguimiento`;
+    }
+    
+    buildMentorshipUserPrompt(question, context) {
+      let prompt = `Pregunta del trabajador de salud: "${question}"`;
+      
+      if (context.position) {
+        prompt += `\nCargo: ${context.position}`;
+      }
+      
+      if (context.department) {
+        prompt += `\nDepartamento: ${context.department}`;
+      }
+      
+      if (context.area) {
+        prompt += `\nÁrea de consulta: ${context.area}`;
+      }
+      
+      return prompt;
+    }
+    ```
+  </Step>
+  
+  <Step title="Generate Response">
+    The service combines prompts and calls Claude:
+    
+    ```javascript
+    // From mentorshipService.js:10-38
+    async provideMentorship(employeeId, question, context = {}) {
+      const systemPrompt = this.buildMentorshipSystemPrompt();
+      const userPrompt = this.buildMentorshipUserPrompt(question, context);
+      
+      const response = await claudeService.generateResponse(userPrompt, {
+        maxTokens: 800,
+        temperature: 0.8, // Higher temperature for more empathetic, varied responses
+        systemMessage: systemPrompt
+      });
+      
+      logger.info('Mentoría proporcionada', {
+        employeeId,
+        questionLength: question.length,
+        responseLength: response.response.length
+      });
+      
+      return {
+        response: response.response,
+        timestamp: new Date(),
+        context: context.area || 'general'
+      };
+    }
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Prompt Engineering
+
+### System Prompt Design
+
+The system prompt defines CUIDO's personality and behavior:
+
+<Accordion title="Core Persona">
+  ```text
+  Eres CUIDO, un mentor virtual especializado en salud rural.
+  ```
+  
+  CUIDO is positioned as a specialized mentor, not a generic chatbot. This establishes expertise and trust.
+</Accordion>
+
+<Accordion title="Primary Functions">
+  ```text
+  1. Brindar acompañamiento emocional y profesional a trabajadores de la salud
+  2. Dar consejos prácticos para situaciones del día a día
+  3. Ayudar con dilemas éticos y comunicación con pacientes
+  4. Ofrecer apoyo motivacional
+  ```
+  
+  Clear functional boundaries help Claude stay focused on relevant healthcare worker support.
+</Accordion>
+
+<Accordion title="Behavioral Constraints">
+  ```text
+  - Responde en español con tono cálido y empático
+  - Máximo 200 palabras por respuesta
+  - Si es algo médico grave, recomienda consultar con supervisor
+  - Enfócate en lo práctico y aplicable
+  - Termina siempre con una pregunta de seguimiento
+  ```
+  
+  These constraints ensure:
+  - **Language**: Spanish for Latin American users
+  - **Tone**: Warm and empathetic, not clinical
+  - **Brevity**: 200-word limit for mobile-friendly responses
+  - **Safety**: Escalates serious medical issues to human supervisors
+  - **Practicality**: Actionable advice over theory
+  - **Engagement**: Follow-up questions maintain conversation
+</Accordion>
+
+### Context Enrichment
+
+User prompts are enriched with employee context:
+
+```javascript
+Pregunta del trabajador de salud: "¿Cómo manejo a un paciente agresivo?"
+Cargo: Enfermera
+Departamento: urgencias
+Área de consulta: manejo_pacientes
+```
+
+This allows Claude to provide role-specific, department-aware guidance.
+
+---
+
+## Usage Examples
+
+### Example 1: Emotional Support
+
+<CodeGroup>
+```javascript Request
+POST /api/mentorship/ask
+{
+  "question": "Me siento agotada, cada día es más difícil motivarme para venir a trabajar",
+  "context": {
+    "position": "Enfermera",
+    "department": "urgencias",
+    "area": "bienestar_emocional"
+  }
+}
+```
+
+```javascript Response
+{
+  "response": "Entiendo perfectamente lo que sientes. El trabajo en urgencias es especialmente demandante y el agotamiento emocional es muy común en nuestro sector. Lo importante es que reconoces lo que te está pasando - ese es el primer paso.\n\nTe sugiero tres cosas prácticas:\n\n1. **Micro-pausas**: Aunque sea 2-3 minutos cada hora, respira profundo y desconéctate mentalmente\n2. **Habla con tu equipo**: Es probable que otros compañeros sientan lo mismo. El apoyo mutuo es invaluable\n3. **Establece límites**: Cuando termina tu turno, intenta dejar el trabajo en el hospital. Tu salud mental importa tanto como la de tus pacientes\n\n¿Has hablado con alguien de tu equipo sobre cómo te sientes? A veces compartir la carga ayuda mucho.",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "context": "bienestar_emocional"
+}
+```
+</CodeGroup>
+
+### Example 2: Ethical Dilemma
+
+<CodeGroup>
+```javascript Request
+POST /api/mentorship/ask
+{
+  "question": "Tengo un paciente que rechaza un tratamiento necesario por creencias religiosas. ¿Qué hago?",
+  "context": {
+    "position": "Médico General",
+    "department": "consulta_externa",
+    "area": "dilemas_eticos"
+  }
+}
+```
+
+```javascript Response
+{
+  "response": "Esta es una situación delicada que requiere balance entre respeto a la autonomía del paciente y tu responsabilidad médica.\n\nPasos recomendados:\n\n1. **Escucha activa**: Pregunta al paciente sobre sus creencias y por qué rechaza el tratamiento. Entender su perspectiva es crucial\n2. **Educación respetuosa**: Explica las consecuencias médicas de no tratar, pero sin presionar. Usa términos que respeten su marco de creencias\n3. **Alternativas**: ¿Hay otros tratamientos que sean compatibles con sus creencias?\n4. **Documentación**: Registra todo - la conversación, sus razones, tu explicación de riesgos\n5. **Consulta**: Habla con tu supervisor o el comité de ética del hospital si el riesgo es grave\n\nRecuerda: el consentimiento informado incluye el derecho a rechazar tratamiento. Tu rol es asegurar que entienda las consecuencias.\n\n¿El paciente tiene familiares que puedan ayudar en el diálogo?",
+  "timestamp": "2024-01-15T11:45:00Z",
+  "context": "dilemas_eticos"
+}
+```
+</CodeGroup>
+
+### Example 3: Communication Skills
+
+<CodeGroup>
+```javascript Request
+POST /api/mentorship/ask
+{
+  "question": "¿Cómo le comunico malas noticias a la familia de un paciente?",
+  "context": {
+    "position": "Médico Interno",
+    "department": "hospitalizacion",
+    "area": "comunicacion"
+  }
+}
+```
+
+```javascript Response
+{
+  "response": "Dar malas noticias es una de las tareas más difíciles, pero con práctica se hace con más empatía.\n\nProtocolo SPIKES simplificado:\n\n**S** - Setting: Busca un lugar privado, asegura que haya asientos\n**P** - Perception: Pregunta qué saben de la situación\n**I** - Invitation: Pregunta cuánto quieren saber\n**K** - Knowledge: Da la información de forma clara pero compasiva\n**E** - Emotions: Reconoce y valida sus emociones\n**S** - Summary: Resume y ofrece los siguientes pasos\n\nConsejos prácticos:\n- Evita jerga médica compleja\n- Haz pausas - dales tiempo de procesar\n- Está bien el silencio\n- Ten pañuelos a mano\n- No minimices con frases como \"al menos...\"\n\nEs normal sentir que no tienes las palabras perfectas. Tu presencia compasiva importa más que las palabras exactas.\n\n¿Hay alguien más experimentado que pueda acompañarte las primeras veces?",
+  "timestamp": "2024-01-15T14:20:00Z",
+  "context": "comunicacion"
+}
+```
+</CodeGroup>
+
+---
+
+## Temperature and Token Configuration
+
+### Response Parameters
+
+```javascript
+const response = await claudeService.generateResponse(userPrompt, {
+  maxTokens: 800,      // Limits response length (~600 words)
+  temperature: 0.8,    // Higher temperature = more varied, empathetic responses
+  systemMessage: systemPrompt
+});
+```
+
+<Note>
+**Temperature: 0.8** - Higher than typical (0.7) to encourage:
+- More natural, conversational tone
+- Varied phrasing across similar questions
+- Greater empathy in responses
+- Less rigid, more human-like answers
+</Note>
+
+<Warning>
+**Max Tokens: 800** - Carefully chosen to:
+- Allow detailed responses (unlike 200-word constraint in prompt)
+- Prevent overly long responses that overwhelm users
+- Optimize API costs while maintaining quality
+- Target ~600 words maximum in Spanish
+</Warning>
+
+---
+
+## Safety and Escalation
+
+### Built-in Safety Measures
+
+The system includes multiple safety layers:
+
+<Steps>
+  <Step title="Prompt-Level Safety">
+    The system prompt includes:
+    ```text
+    Si es algo médico grave, recomienda consultar con supervisor
+    ```
+    
+    This instructs Claude to escalate serious medical issues to human supervisors.
+  </Step>
+  
+  <Step title="Response Validation">
+    ```javascript
+    if (!response.content || response.content.length === 0) {
+      throw new AppError('Claude no generó respuesta', 500);
+    }
+    
+    if (assistantMessage.type !== 'text') {
+      throw new AppError('Tipo de respuesta no esperado de Claude', 500);
+    }
+    ```
+  </Step>
+  
+  <Step title="Error Handling">
+    ```javascript
+    // From claudeService.js:122-149
+    catch (error) {
+      if (error.status === 400) {
+        throw new AppError('Solicitud inválida a Claude: ' + error.message, 400);
+      }
+      if (error.status === 401) {
+        throw new AppError('API key de Claude inválida', 500);
+      }
+      if (error.status === 429) {
+        throw new AppError('Límite de rate excedido para Claude API', 429);
+      }
+      if (error.status >= 500) {
+        throw new AppError('Error interno del servicio Claude', 503);
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Usage Tracking">
+    All interactions are logged for analytics and safety review:
+    ```javascript
+    logger.info('Mentoría proporcionada', {
+      employeeId,
+      questionLength: question.length,
+      responseLength: response.response.length
+    });
+    ```
+  </Step>
+</Steps>
+
+---
+
+## API Reference
+
+### Ask Mentor
+
+<CodeGroup>
+```javascript POST /api/mentorship/ask
+// Submit question to virtual mentor
+{
+  "question": "¿Cómo manejo el estrés del trabajo?",
+  "context": {
+    "position": "Enfermera",
+    "department": "urgencias",
+    "area": "bienestar_emocional"
+  }
+}
+```
+
+```javascript Response
+{
+  "status": "success",
+  "message": "Respuesta de mentoría generada",
+  "data": {
+    "response": {
+      "response": "[CUIDO's response]",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "context": "bienestar_emocional"
+    }
+  }
+}
+```
+</CodeGroup>
+
+### Context Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `question` | string | The employee's question (required) |
+| `context.position` | string | Employee's job position |
+| `context.department` | string | Employee's department |
+| `context.area` | string | Topic area (bienestar_emocional, dilemas_eticos, comunicacion, manejo_pacientes) |
+
+---
+
+## Token Usage and Analytics
+
+Every request tracks token usage for cost monitoring:
+
+```javascript
+usage: {
+  inputTokens: 245,
+  outputTokens: 387,
+  totalTokens: 632
+},
+metadata: {
+  model: 'claude-3-5-sonnet-20241022',
+  responseTime: 2.3,
+  temperature: 0.8,
+  maxTokens: 800,
+  stopReason: 'end_turn'
+}
+```
+
+<Note>
+**Average Cost per Interaction**:
+- Input tokens: ~250 tokens ($0.003 per 1K tokens) = $0.00075
+- Output tokens: ~400 tokens ($0.015 per 1K tokens) = $0.006
+- **Total: ~$0.007 per mentorship interaction**
+</Note>
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Concise Questions" icon="comment">
+    Encourage employees to ask focused questions for better responses
+  </Card>
+  <Card title="Provide Context" icon="info-circle">
+    Always include position and department for relevant advice
+  </Card>
+  <Card title="Follow-up" icon="reply">
+    Use CUIDO's follow-up questions to deepen conversations
+  </Card>
+  <Card title="Human Escalation" icon="user-doctor">
+    Have a clear path to human supervisors for complex issues
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Diagnostic Module" icon="chart-line" href="/modules/diagnostic">
+    Learn about wellness surveys and risk detection
+  </Card>
+  <Card title="Claude Service" icon="brain" href="/concepts/architecture">
+    Deep dive into the Claude integration architecture
+  </Card>
+  <Card title="Microlearning" icon="graduation-cap" href="/modules/microlearning">
+    Explore the course and training system
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/mentorship/ask">
+    Complete API documentation for the Mentorship module
+  </Card>
+</CardGroup>

@@ -1,80 +1,354 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get CUIDO Backend up and running in 5 minutes
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
+Get your CUIDO Backend instance running quickly with this streamlined guide.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Before you begin, ensure you have:
 
-### Step 2: Deploy your changes
+- **Node.js** >= 18.0.0
+- **npm** >= 8.0.0
+- **MongoDB** >= 5.0 (running locally or remotely)
+- **Anthropic API Key** from [console.anthropic.com](https://console.anthropic.com/)
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Tip>
+  You can check your Node.js version with `node --version` and npm version with `npm --version`.
+</Tip>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Installation Steps
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the CUIDO Backend repository to your local machine:
 
-### Step 3: Go live
+    ```bash
+    git clone https://github.com/JuanMartinezL/CUIDO_Back.git
+    cd CUIDO_Back
+    ```
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Install Dependencies">
+    Install all required npm packages:
 
-## Next steps
+    ```bash
+    npm install
+    ```
 
-Now that you have your docs running, explore these key features:
+    This will install 20+ production dependencies including Express, Mongoose, Anthropic SDK, and more.
+  </Step>
 
-<CardGroup cols={2}>
+  <Step title="Configure Environment">
+    Create your environment configuration file:
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+    ```bash
+    cp .env.example .env
+    ```
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+    Edit the `.env` file with your settings:
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+    ```env
+    # Server Configuration
+    PORT=3000
+    NODE_ENV=development
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+    # Database
+    MONGODB_URI=mongodb://localhost:27017/claude-prompt-db
 
-</CardGroup>
+    # Authentication
+    JWT_SECRET=your_jwt_secret_super_secure_256_bits_minimum
+    JWT_EXPIRES_IN=7d
+
+    # Anthropic Claude AI
+    ANTHROPIC_API_KEY=sk-ant-api03-your-api-key-here
+    CLAUDE_MODEL=claude-3-sonnet-20240229
+    ```
+
+    <Warning>
+      Replace `your_jwt_secret_super_secure_256_bits_minimum` with a strong random string for production use.
+    </Warning>
+  </Step>
+
+  <Step title="Start MongoDB">
+    Ensure MongoDB is running on your system:
+
+    ```bash
+    # macOS (with Homebrew)
+    brew services start mongodb-community
+
+    # Linux (systemd)
+    sudo systemctl start mongod
+
+    # Or use Docker
+    docker run -d -p 27017:27017 --name mongodb mongo:5.0
+    ```
+  </Step>
+
+  <Step title="Seed the Database (Optional)">
+    Populate the database with initial data:
+
+    ```bash
+    npm run seed
+    ```
+
+    This creates default prompt templates and test data.
+  </Step>
+
+  <Step title="Start the Server">
+    Launch the development server:
+
+    ```bash
+    npm run dev
+    ```
+
+    You should see output similar to:
+
+    ```
+    ✓ Variables de entorno cargadas:
+    ANTHROPIC_API_KEY configurada: true
+    ✓ Conectado exitosamente a la base de datos
+    ✓ Conexión con Claude API validada exitosamente
+    ✓ Servidor corriendo en puerto 3000 (development)
+    Módulo de Diagnóstico Inteligente activado
+    ✓ Notificaciones en tiempo real habilitadas
+    ✓ Tareas programadas iniciadas
+    ```
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Test that your server is running correctly:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Expected response:
+```json
+{
+  "success": true,
+  "message": "Servicio funcionando correctamente",
+  "timestamp": "2024-03-05T10:30:00.000Z",
+  "environment": "development"
+}
+```
+
+## Make Your First API Call
+
+Now let's register a user and make a chat completion request.
+
+### 1. Register a User
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "SecurePass123!"
+  }'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Usuario registrado exitosamente",
+  "data": {
+    "user": {
+      "_id": "65f8a9b2c1234567890abcde",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "user"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Save the `token` value - you'll need it for authenticated requests.
 </Note>
+
+### 2. Login
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "SecurePass123!"
+  }'
+```
+
+### 3. Get Your Profile
+
+```bash
+curl -X GET http://localhost:3000/api/auth/profile \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+### 4. List Prompt Templates
+
+```bash
+curl -X GET http://localhost:3000/api/prompts \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+### 5. Chat with Claude AI
+
+```bash
+curl -X POST http://localhost:3000/api/chat/complete \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -d '{
+    "templateId": "TEMPLATE_ID_FROM_PREVIOUS_STEP",
+    "userPrompt": "Explain how the immune system works",
+    "temperature": 0.7,
+    "maxTokens": 1000
+  }'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Respuesta generada exitosamente",
+  "data": {
+    "response": "El sistema inmunológico es...",
+    "conversationId": "65f8a9b2c1234567890abcdf",
+    "tokenUsage": {
+      "input": 245,
+      "output": 512,
+      "total": 757
+    },
+    "metadata": {
+      "model": "claude-3-sonnet-20240229",
+      "responseTime": 1234,
+      "temperature": 0.7,
+      "maxTokens": 1000,
+      "template": "Medical Explanation"
+    }
+  }
+}
+```
+
+## Available Scripts
+
+<CodeGroup>
+
+```bash Development
+# Start with auto-reload
+npm run dev
+```
+
+```bash Production
+# Start production server
+npm start
+```
+
+```bash Testing
+# Run test suite
+npm test
+
+# Watch mode
+npm run test:watch
+
+# With coverage
+npm run test:coverage
+```
+
+```bash Database
+# Seed database
+npm run seed
+
+# Seed CUIDO-specific data
+npm run seedCuido
+```
+
+```bash Code Quality
+# Lint code
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+```
+
+```bash Docker
+# Build Docker image
+npm run docker:build
+
+# Run with Docker
+npm run docker:run
+```
+
+</CodeGroup>
+
+## Rate Limiting
+
+Be aware of the built-in rate limits:
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| Authentication (`/api/auth/login`, `/api/auth/register`) | 5 requests | 15 minutes |
+| Chat (`/api/chat/complete`) | 10 requests | 1 minute (per user) |
+| General API | 100 requests | 15 minutes (per IP) |
+
+<Warning>
+  Exceeding rate limits will result in a `429 Too Many Requests` response. Plan your API usage accordingly.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="gear" href="/configuration">
+    Learn about all environment variables
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/auth/login">
+    Explore detailed API documentation
+  </Card>
+  <Card title="Authentication" icon="lock" href="/api/auth/login">
+    Deep dive into auth system
+  </Card>
+  <Card title="Chat System" icon="comments" href="/api/chat/complete">
+    Master the Claude AI integration
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="MongoDB connection failed">
+    Ensure MongoDB is running and the `MONGODB_URI` in your `.env` file is correct. Check the connection string format:
+    
+    ```
+    mongodb://localhost:27017/claude-prompt-db
+    ```
+  </Accordion>
+
+  <Accordion title="ANTHROPIC_API_KEY validation error">
+    Your API key must:
+    - Start with `sk-ant-`
+    - Be from a valid Anthropic account
+    - Have sufficient credits
+    
+    Get a key from [console.anthropic.com](https://console.anthropic.com/).
+  </Accordion>
+
+  <Accordion title="Port 3000 already in use">
+    Change the port in your `.env` file:
+    
+    ```env
+    PORT=3001
+    ```
+  </Accordion>
+
+  <Accordion title="Rate limit exceeded during testing">
+    Rate limits are per-IP and per-user. Wait for the window to reset or temporarily disable rate limiting in development by modifying `src/app.js`.
+  </Accordion>
+</AccordionGroup>

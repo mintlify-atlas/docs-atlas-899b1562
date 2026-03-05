@@ -1,0 +1,444 @@
+---
+title: 'Conversation History'
+description: 'Retrieve and manage conversation history for users'
+api: 'GET /api/chat/history'
+---
+
+## Overview
+
+Retrieve a paginated list of chat conversations for the authenticated user, or fetch detailed information about a specific conversation.
+
+## Authentication
+
+This endpoint requires authentication.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+---
+
+## Get Conversation History
+
+Retrieve a paginated list of conversations for the current user.
+
+### Endpoint
+
+```
+GET /api/chat/history
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number">
+  Page number for pagination. Default: 1
+</ParamField>
+
+<ParamField query="limit" type="number">
+  Number of conversations per page. Default: 20
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data.conversations" type="array">
+  Array of conversation summary objects
+  
+  <Expandable title="conversation properties">
+    <ResponseField name="_id" type="string">
+      Conversation unique identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Conversation title (generated from first 100 chars of user prompt)
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of conversation creation
+    </ResponseField>
+    
+    <ResponseField name="totalTokens" type="number">
+      Total tokens consumed in this conversation
+    </ResponseField>
+    
+    <ResponseField name="claudeModel" type="string">
+      Claude model used for this conversation
+    </ResponseField>
+    
+    <ResponseField name="templateId" type="object">
+      Populated template information
+      
+      <Expandable title="templateId properties">
+        <ResponseField name="_id" type="string">
+          Template unique identifier
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Template name
+        </ResponseField>
+        
+        <ResponseField name="category" type="string">
+          Template category
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.pagination" type="object">
+  Pagination metadata
+  
+  <Expandable title="pagination properties">
+    <ResponseField name="page" type="number">
+      Current page number
+    </ResponseField>
+    
+    <ResponseField name="limit" type="number">
+      Items per page
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of conversations
+    </ResponseField>
+    
+    <ResponseField name="pages" type="number">
+      Total number of pages
+    </ResponseField>
+    
+    <ResponseField name="hasNext" type="boolean">
+      Whether there's a next page
+    </ResponseField>
+    
+    <ResponseField name="hasPrev" type="boolean">
+      Whether there's a previous page
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.cuido.com/api/chat/history?page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/chat/history?page=1&limit=20', {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+console.log(data.data.conversations);
+```
+
+```python Python
+import requests
+
+url = "https://api.cuido.com/api/chat/history?page=1&limit=20"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN"
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Historial obtenido exitosamente",
+  "data": {
+    "conversations": [
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e8",
+        "title": "Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo...",
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "totalTokens": 432,
+        "claudeModel": "claude-3-sonnet-20240229",
+        "templateId": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
+          "name": "Análisis de RRHH en Salud",
+          "category": "Recursos Humanos y Salud"
+        }
+      },
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e7",
+        "title": "Cómo reducir los tiempos de espera en urgencias...",
+        "createdAt": "2024-01-14T15:20:00.000Z",
+        "totalTokens": 567,
+        "claudeModel": "claude-3-sonnet-20240229",
+        "templateId": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e2",
+          "name": "Mejora de Calidad Asistencial",
+          "category": "Calidad Asistencial y Salud"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 45,
+      "pages": 3,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+## Get Specific Conversation
+
+Retrieve complete details of a specific conversation, including all messages.
+
+### Endpoint
+
+```
+GET /api/chat/conversations/:id
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  MongoDB ObjectId of the conversation
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data.conversation" type="object">
+  Complete conversation object
+  
+  <Expandable title="conversation properties">
+    <ResponseField name="_id" type="string">
+      Conversation unique identifier
+    </ResponseField>
+    
+    <ResponseField name="userId" type="object">
+      Populated user information (name, email)
+    </ResponseField>
+    
+    <ResponseField name="templateId" type="object">
+      Populated template information (name, description, category)
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Conversation title
+    </ResponseField>
+    
+    <ResponseField name="claudeModel" type="string">
+      Claude model used
+    </ResponseField>
+    
+    <ResponseField name="messages" type="array">
+      Array of message objects
+      
+      <Expandable title="message properties">
+        <ResponseField name="role" type="string">
+          Message role: `user`, `assistant`, or `system`
+        </ResponseField>
+        
+        <ResponseField name="content" type="string">
+          Message content (max 10,000 characters)
+        </ResponseField>
+        
+        <ResponseField name="timestamp" type="string">
+          ISO 8601 timestamp
+        </ResponseField>
+        
+        <ResponseField name="tokenCount" type="number">
+          Tokens consumed by this message
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Conversation status: `active`, `completed`, `error`
+    </ResponseField>
+    
+    <ResponseField name="totalTokens" type="number">
+      Total tokens consumed
+    </ResponseField>
+    
+    <ResponseField name="metadata" type="object">
+      Additional metadata
+      
+      <Expandable title="metadata properties">
+        <ResponseField name="userPrompt" type="string">
+          Original user prompt
+        </ResponseField>
+        
+        <ResponseField name="combinedPrompt" type="string">
+          Final combined prompt sent to Claude
+        </ResponseField>
+        
+        <ResponseField name="responseTime" type="number">
+          Response generation time (ms)
+        </ResponseField>
+        
+        <ResponseField name="temperature" type="number">
+          Temperature parameter used
+        </ResponseField>
+        
+        <ResponseField name="maxTokens" type="number">
+          Max tokens parameter
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.cuido.com/api/chat/conversations/65a1b2c3d4e5f6a7b8c9d0e8 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const conversationId = '65a1b2c3d4e5f6a7b8c9d0e8';
+const response = await fetch(`https://api.cuido.com/api/chat/conversations/${conversationId}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Conversación obtenida exitosamente",
+  "data": {
+    "conversation": {
+      "_id": "65a1b2c3d4e5f6a7b8c9d0e8",
+      "userId": {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e0",
+        "name": "Admin User",
+        "email": "admin@hospital.com"
+      },
+      "templateId": {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
+        "name": "Análisis de RRHH en Salud",
+        "description": "Plantilla para analizar métricas de recursos humanos y generar recomendaciones",
+        "category": "Recursos Humanos y Salud"
+      },
+      "title": "Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo...",
+      "claudeModel": "claude-3-sonnet-20240229",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo",
+          "timestamp": "2024-01-15T10:30:00.000Z",
+          "tokenCount": 245
+        },
+        {
+          "role": "assistant",
+          "content": "Basado en las métricas de satisfacción del personal, se observa un promedio de 7.2/10...",
+          "timestamp": "2024-01-15T10:30:02.000Z",
+          "tokenCount": 187
+        }
+      ],
+      "status": "completed",
+      "totalTokens": 432,
+      "metadata": {
+        "userPrompt": "Analiza el nivel de satisfacción del personal en el último mes y sugiere acciones para mejorarlo",
+        "combinedPrompt": "[Full combined prompt with system instructions...]",
+        "responseTime": 2350,
+        "temperature": 0.7,
+        "maxTokens": 500
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:02.000Z"
+    }
+  }
+}
+```
+
+## Security
+
+Both endpoints implement ownership validation (`src/controllers/chatController.js:165`):
+
+- Users can only access their own conversations
+- Attempts to access others' conversations return 404
+- This prevents unauthorized data access
+
+## Performance Optimization
+
+The history endpoint uses parallel queries (`src/controllers/chatController.js:128`):
+
+```javascript
+const [conversations, total] = await Promise.all([
+  Conversation.find({ userId }).select(...).limit(...).skip(...),
+  Conversation.countDocuments({ userId })
+]);
+```
+
+This reduces response time by ~50% compared to sequential queries.
+
+## Error Responses
+
+<Tabs>
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Not Found">
+    ```json
+    {
+      "success": false,
+      "message": "Conversación no encontrada"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Use Cases
+
+1. **Conversation Management**: Display user's chat history in UI
+2. **Analytics**: Track usage patterns and popular templates
+3. **Auditing**: Review AI interactions for compliance
+4. **Continuation**: Resume previous conversations
+5. **Cost Tracking**: Monitor token consumption per user
+
+## Source Code References
+
+- Route: `src/routes/chatRoutes.js:58-67`
+- History Controller: `src/controllers/chatController.js:121`
+- Single Conversation: `src/controllers/chatController.js:160`
+- Model: `src/models/Conversation.js`

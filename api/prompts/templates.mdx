@@ -1,0 +1,638 @@
+---
+title: 'Prompt Templates'
+description: 'Manage AI prompt templates for chat completions'
+api: 'GET /api/prompts'
+---
+
+## Overview
+
+Prompt templates define the system instructions and structure for AI chat completions. They allow administrators to create reusable, specialized prompts for different use cases like HR analysis, quality improvement, or general assistance.
+
+## Authentication
+
+All prompt endpoints require authentication. Admin-only operations are marked.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+---
+
+## List Prompt Templates
+
+Get a paginated list of active prompt templates with optional filtering.
+
+### Endpoint
+
+```
+GET /api/prompts
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number">
+  Page number for pagination. Default: 1
+</ParamField>
+
+<ParamField query="limit" type="number">
+  Number of templates per page. Default: 10
+</ParamField>
+
+<ParamField query="category" type="string">
+  Filter by category. Options: `analysis`, `creative`, `technical`, `business`, `educational`, `general`
+</ParamField>
+
+<ParamField query="tags" type="string">
+  Filter by tags (comma-separated). Example: `healthcare,analytics`
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search in name or description (max 100 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data.prompts" type="array">
+  Array of prompt template objects
+  
+  <Expandable title="prompt properties">
+    <ResponseField name="_id" type="string">
+      Template unique identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Template name
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Template description
+    </ResponseField>
+    
+    <ResponseField name="category" type="string">
+      Template category
+    </ResponseField>
+    
+    <ResponseField name="tags" type="array">
+      Array of tag strings
+    </ResponseField>
+    
+    <ResponseField name="usageCount" type="number">
+      Number of times this template has been used
+    </ResponseField>
+    
+    <ResponseField name="isDefault" type="boolean">
+      Whether this is a default system template
+    </ResponseField>
+    
+    <ResponseField name="createdBy" type="object">
+      Populated user information (name, email)
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.pagination" type="object">
+  Pagination metadata
+  
+  <Expandable title="pagination properties">
+    <ResponseField name="page" type="number">
+      Current page number
+    </ResponseField>
+    
+    <ResponseField name="limit" type="number">
+      Items per page
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of templates
+    </ResponseField>
+    
+    <ResponseField name="pages" type="number">
+      Total number of pages
+    </ResponseField>
+    
+    <ResponseField name="hasNext" type="boolean">
+      Whether there's a next page
+    </ResponseField>
+    
+    <ResponseField name="hasPrev" type="boolean">
+      Whether there's a previous page
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Sorting
+
+Templates are sorted by:
+1. `isDefault` (default templates first)
+2. `usageCount` (most used first)
+3. `createdAt` (most recent first)
+
+### Examples
+
+<CodeGroup>
+```bash cURL - All Templates
+curl -X GET "https://api.cuido.com/api/prompts?page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```bash cURL - Filter by Category
+curl -X GET "https://api.cuido.com/api/prompts?category=analysis&page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```bash cURL - Search
+curl -X GET "https://api.cuido.com/api/prompts?search=recursos%20humanos" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/prompts?category=analysis&page=1&limit=10', {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+console.log(data.data.prompts);
+```
+
+```python Python
+import requests
+
+url = "https://api.cuido.com/api/prompts?category=analysis&page=1&limit=10"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN"
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Plantillas obtenidas exitosamente",
+  "data": {
+    "prompts": [
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
+        "name": "Análisis de RRHH en Salud",
+        "description": "Plantilla especializada para analizar métricas de recursos humanos en hospitales rurales",
+        "category": "analysis",
+        "tags": ["healthcare", "hr", "analytics"],
+        "usageCount": 247,
+        "isDefault": true,
+        "createdBy": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e0",
+          "name": "System Admin",
+          "email": "admin@cuido.com"
+        },
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      },
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e2",
+        "name": "Mejora de Calidad Asistencial",
+        "description": "Genera recomendaciones para mejorar indicadores de calidad hospitalaria",
+        "category": "business",
+        "tags": ["quality", "improvement", "patient-care"],
+        "usageCount": 189,
+        "isDefault": true,
+        "createdBy": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e0",
+          "name": "System Admin",
+          "email": "admin@cuido.com"
+        },
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 15,
+      "pages": 2,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+## Get Single Template
+
+Retrieve complete details of a specific prompt template.
+
+### Endpoint
+
+```
+GET /api/prompts/:id
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  MongoDB ObjectId of the template
+</ParamField>
+
+### Response
+
+<ResponseField name="data.prompt" type="object">
+  Complete template object including `template` and `systemInstructions` fields
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.cuido.com/api/prompts/65a1b2c3d4e5f6a7b8c9d0e1 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const templateId = '65a1b2c3d4e5f6a7b8c9d0e1';
+const response = await fetch(`https://api.cuido.com/api/prompts/${templateId}`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Plantilla obtenida exitosamente",
+  "data": {
+    "prompt": {
+      "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
+      "name": "Análisis de RRHH en Salud",
+      "description": "Plantilla especializada para analizar métricas de recursos humanos en hospitales rurales",
+      "template": "Analiza las siguientes métricas de recursos humanos:\n- Motivación promedio\n- Satisfacción del personal\n- Riesgo de fuga\n- Horas de capacitación\n\nGenera recomendaciones concretas y priorizadas.",
+      "systemInstructions": "Eres un experto en gestión de recursos humanos en el sector salud rural. Tu objetivo es proporcionar análisis basados en datos y recomendaciones prácticas que puedan implementarse en hospitales con recursos limitados.",
+      "category": "analysis",
+      "tags": ["healthcare", "hr", "analytics"],
+      "isDefault": true,
+      "isActive": true,
+      "usageCount": 247,
+      "createdBy": {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e0",
+        "name": "System Admin",
+        "email": "admin@cuido.com"
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+## Create Template
+
+Create a new custom prompt template. **Admin only**.
+
+### Endpoint
+
+```
+POST /api/prompts
+```
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Template name. Must be 3-100 characters and unique.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Template description. Must be 10-500 characters.
+</ParamField>
+
+<ParamField body="template" type="string" required>
+  The prompt template content. Must be 20-2000 characters.
+</ParamField>
+
+<ParamField body="systemInstructions" type="string" required>
+  System-level instructions for the AI. Must be 20-1000 characters.
+</ParamField>
+
+<ParamField body="category" type="string" required>
+  Template category. Options: `analysis`, `creative`, `technical`, `business`, `educational`, `general`
+</ParamField>
+
+<ParamField body="tags" type="array">
+  Array of tag strings (max 10 tags, each max 30 characters). Tags are automatically lowercased.
+</ParamField>
+
+### Response
+
+<ResponseField name="data.prompt" type="object">
+  The created template object with `_id` and timestamps
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.cuido.com/api/prompts \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Análisis de Rotación de Personal",
+    "description": "Analiza patrones de rotación de personal y genera estrategias de retención",
+    "template": "Analiza los siguientes datos de rotación:\n- Tasa de rotación mensual\n- Departamentos más afectados\n- Razones de salida\n\nProporciona estrategias específicas de retención.",
+    "systemInstructions": "Eres un consultor experto en retención de talento en el sector salud. Proporciona análisis basados en datos y recomendaciones accionables.",
+    "category": "analysis",
+    "tags": ["hr", "retention", "turnover"]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/prompts', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Análisis de Rotación de Personal',
+    description: 'Analiza patrones de rotación de personal y genera estrategias de retención',
+    template: 'Analiza los siguientes datos de rotación:\n- Tasa de rotación mensual\n- Departamentos más afectados\n- Razones de salida\n\nProporciona estrategias específicas de retención.',
+    systemInstructions: 'Eres un consultor experto en retención de talento en el sector salud. Proporciona análisis basados en datos y recomendaciones accionables.',
+    category: 'analysis',
+    tags: ['hr', 'retention', 'turnover']
+  })
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Plantilla creada exitosamente",
+  "data": {
+    "prompt": {
+      "_id": "65a1b2c3d4e5f6a7b8c9d0e9",
+      "name": "Análisis de Rotación de Personal",
+      "description": "Analiza patrones de rotación de personal y genera estrategias de retención",
+      "template": "Analiza los siguientes datos de rotación:\n- Tasa de rotación mensual\n- Departamentos más afectados\n- Razones de salida\n\nProporciona estrategias específicas de retención.",
+      "systemInstructions": "Eres un consultor experto en retención de talento en el sector salud. Proporciona análisis basados en datos y recomendaciones accionables.",
+      "category": "analysis",
+      "tags": ["hr", "retention", "turnover"],
+      "isDefault": false,
+      "isActive": true,
+      "usageCount": 0,
+      "createdBy": "65a1b2c3d4e5f6a7b8c9d0e0",
+      "createdAt": "2024-01-15T14:30:00.000Z",
+      "updatedAt": "2024-01-15T14:30:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+## Update Template
+
+Update an existing template. **Admin only**. Only the creator can update their templates.
+
+### Endpoint
+
+```
+PUT /api/prompts/:id
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  MongoDB ObjectId of the template to update
+</ParamField>
+
+### Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+<ParamField body="name" type="string">
+  New template name (3-100 characters)
+</ParamField>
+
+<ParamField body="description" type="string">
+  New description (10-500 characters)
+</ParamField>
+
+<ParamField body="template" type="string">
+  New template content (20-2000 characters)
+</ParamField>
+
+<ParamField body="systemInstructions" type="string">
+  New system instructions (20-1000 characters)
+</ParamField>
+
+<ParamField body="category" type="string">
+  New category
+</ParamField>
+
+<ParamField body="tags" type="array">
+  New tags array
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://api.cuido.com/api/prompts/65a1b2c3d4e5f6a7b8c9d0e9 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Analiza patrones de rotación de personal, identifica causas raíz y genera estrategias específicas de retención",
+    "tags": ["hr", "retention", "turnover", "analytics"]
+  }'
+```
+
+```javascript JavaScript
+const templateId = '65a1b2c3d4e5f6a7b8c9d0e9';
+const response = await fetch(`https://api.cuido.com/api/prompts/${templateId}`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    description: 'Analiza patrones de rotación de personal, identifica causas raíz y genera estrategias específicas de retención',
+    tags: ['hr', 'retention', 'turnover', 'analytics']
+  })
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+---
+
+## Delete Template
+
+Soft-delete a template by marking it as inactive. **Admin only**. Only the creator can delete their templates.
+
+### Endpoint
+
+```
+DELETE /api/prompts/:id
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  MongoDB ObjectId of the template to delete
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Plantilla eliminada exitosamente"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://api.cuido.com/api/prompts/65a1b2c3d4e5f6a7b8c9d0e9 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const templateId = '65a1b2c3d4e5f6a7b8c9d0e9';
+const response = await fetch(`https://api.cuido.com/api/prompts/${templateId}`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+---
+
+## Error Responses
+
+<Tabs>
+  <Tab title="400 Bad Request">
+    ```json
+    {
+      "success": false,
+      "message": "Validation error",
+      "errors": [
+        {
+          "field": "name",
+          "message": "El nombre debe tener al menos 3 caracteres"
+        }
+      ]
+    }
+    ```
+  </Tab>
+  
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="403 Forbidden">
+    ```json
+    {
+      "success": false,
+      "message": "Acceso denegado. Requiere rol de administrador."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Not Found">
+    ```json
+    {
+      "success": false,
+      "message": "Plantilla no encontrada o sin permisos"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Template Categories
+
+| Category | Use Case |
+|----------|----------|
+| `analysis` | Data analysis, metrics interpretation, strategic insights |
+| `creative` | Brainstorming, idea generation, creative solutions |
+| `technical` | Technical documentation, troubleshooting, procedures |
+| `business` | Business strategy, process improvement, operations |
+| `educational` | Training content, learning materials, explanations |
+| `general` | General-purpose assistance, miscellaneous queries |
+
+## Best Practices
+
+1. **Clear System Instructions**
+   - Define the AI's role and expertise
+   - Specify tone and style expectations
+   - Include output format requirements
+
+2. **Effective Template Structure**
+   - Use clear sections and bullet points
+   - Provide context for the AI
+   - Include examples if helpful
+
+3. **Descriptive Naming**
+   - Use specific, searchable names
+   - Include the domain (e.g., "RRHH", "Calidad")
+   - Keep names under 50 characters
+
+4. **Relevant Tags**
+   - Use 3-5 meaningful tags
+   - Include domain, function, and type tags
+   - Use lowercase for consistency
+
+5. **Regular Updates**
+   - Review usage metrics
+   - Update based on user feedback
+   - Deprecate unused templates
+
+## Usage Tracking
+
+Each template tracks `usageCount` which increments every time it's used in a chat completion. This helps identify:
+
+- Most popular templates
+- Templates needing improvement
+- Unused templates to deprecate
+
+## Source Code References
+
+- Routes: `src/routes/promptRoutes.js`
+- Controllers: `src/controllers/promptController.js`
+- Service: `src/services/promptService.js`
+- Model: `src/models/PromptTemplate.js`
+- Validation: `src/routes/promptRoutes.js:24`

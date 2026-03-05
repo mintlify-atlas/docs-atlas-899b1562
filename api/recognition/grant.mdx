@@ -1,0 +1,287 @@
+---
+title: 'Grant Recognition'
+description: 'Award recognition badges and points to employees for achievements'
+api: 'POST /api/recognition/grant'
+---
+
+## Overview
+
+Grant recognition to employees for various achievements such as completing surveys, finishing courses, or special accomplishments. The system automatically awards points, badges, and diplomas based on the recognition type.
+
+## Authentication
+
+This endpoint requires authentication and **admin** role.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Request Body
+
+<ParamField body="employeeId" type="string" required>
+  The MongoDB ObjectId of the employee receiving recognition (24-character hex string)
+</ParamField>
+
+<ParamField body="type" type="string" required>
+  Type of recognition to grant. Options:
+  
+  - `encuesta_completada` - Survey completed (5 points)
+  - `curso_terminado` - Course completed (20 points)
+  - `empleado_mes` - Employee of the month (100 points)
+  - `participacion_activa` - Active participation
+  - `mejora_continua` - Continuous improvement
+  - `logro_especial` - Special achievement
+</ParamField>
+
+<ParamField body="customData" type="object">
+  Optional custom data for the achievement
+  
+  <Expandable title="customData properties">
+    <ParamField body="customData.courseId" type="string">
+      MongoDB ObjectId of related course
+    </ParamField>
+    
+    <ParamField body="customData.description" type="string">
+      Custom description for the recognition
+    </ParamField>
+    
+    <ParamField body="customData.points" type="number">
+      Custom points to award (overrides default)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if recognition was granted successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="data.recognition" type="object">
+  The created recognition object
+  
+  <Expandable title="recognition properties">
+    <ResponseField name="_id" type="string">
+      Recognition unique identifier
+    </ResponseField>
+    
+    <ResponseField name="employeeId" type="string">
+      Reference to the employee
+    </ResponseField>
+    
+    <ResponseField name="recognitionType" type="string">
+      Type of recognition granted
+    </ResponseField>
+    
+    <ResponseField name="rewardType" type="string">
+      Type of reward: `puntos`, `diploma`, `mencion`, `premio_fisico`
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Recognition title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Recognition description
+    </ResponseField>
+    
+    <ResponseField name="pointsAwarded" type="number">
+      Number of gamification points awarded
+    </ResponseField>
+    
+    <ResponseField name="badgeEarned" type="string">
+      Badge/insignia name earned
+    </ResponseField>
+    
+    <ResponseField name="level" type="number">
+      Level associated with recognition (default: 1)
+    </ResponseField>
+    
+    <ResponseField name="isPublic" type="boolean">
+      Whether recognition appears on public wall (default: true)
+    </ResponseField>
+    
+    <ResponseField name="issuedAt" type="string">
+      ISO 8601 timestamp of when recognition was issued
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Recognition Types
+
+Each recognition type has predefined configuration:
+
+| Type | Reward | Title | Points | Badge |
+|------|--------|-------|--------|-------|
+| `encuesta_completada` | puntos | ¡Encuesta Completada! | 5 | participativo |
+| `curso_terminado` | diploma | ¡Curso Completado! | 20 | aprendiz |
+| `empleado_mes` | mencion | ¡Empleado del Mes! | 100 | estrella |
+
+## Examples
+
+<CodeGroup>
+```bash cURL - Course Completion
+curl -X POST https://api.cuido.com/api/recognition/grant \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+    "type": "curso_terminado",
+    "customData": {
+      "courseId": "65a1b2c3d4e5f6a7b8c9d0e1"
+    }
+  }'
+```
+
+```bash cURL - Employee of the Month
+curl -X POST https://api.cuido.com/api/recognition/grant \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+    "type": "empleado_mes"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/recognition/grant', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    employeeId: '65a1b2c3d4e5f6a7b8c9d0e2',
+    type: 'curso_terminado',
+    customData: {
+      courseId: '65a1b2c3d4e5f6a7b8c9d0e1'
+    }
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+url = "https://api.cuido.com/api/recognition/grant"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+    "type": "empleado_mes"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Reconocimiento otorgado exitosamente",
+  "data": {
+    "recognition": {
+      "_id": "65a1b2c3d4e5f6a7b8c9d0e7",
+      "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+      "recognitionType": "curso_terminado",
+      "rewardType": "diploma",
+      "title": "¡Curso Completado!",
+      "description": "Has terminado exitosamente tu capacitación",
+      "pointsAwarded": 20,
+      "badgeEarned": "aprendiz",
+      "level": 1,
+      "achievementData": {
+        "courseId": "65a1b2c3d4e5f6a7b8c9d0e1"
+      },
+      "isPublic": true,
+      "sharedOnSocialMedia": false,
+      "issuedAt": "2024-01-15T10:30:00.000Z",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+## Error Responses
+
+<Tabs>
+  <Tab title="400 Bad Request">
+    ```json
+    {
+      "success": false,
+      "message": "Validation error",
+      "errors": [
+        {
+          "field": "type",
+          "message": "Invalid recognition type"
+        }
+      ]
+    }
+    ```
+  </Tab>
+  
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="403 Forbidden">
+    ```json
+    {
+      "success": false,
+      "message": "Acceso denegado. Requiere rol de administrador."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Not Found">
+    ```json
+    {
+      "success": false,
+      "message": "Empleado no encontrado"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Gamification System
+
+The recognition system is the core of CUIDO's gamification strategy:
+
+- **Points**: Accumulate to level up employees
+- **Badges**: Visual achievements displayed on profiles
+- **Levels**: Calculated based on total points (see stats endpoint)
+- **Public Wall**: Recognitions are visible to encourage team motivation
+
+## Automatic Recognition
+
+While this endpoint allows manual granting, recognitions are typically triggered automatically:
+
+- Survey completion triggers `encuesta_completada`
+- Course completion triggers `curso_terminado`
+- Monthly evaluations may trigger `empleado_mes`
+
+## Source Code References
+
+- Route: `src/routes/recognitionRoutes.js:17`
+- Controller: `src/controllers/recognitionController.js:6`
+- Service: `src/services/recognitionService.js:9`
+- Config: `src/services/recognitionService.js:42`
+- Validator: `src/validators/cuidoValidators.js:69`
+- Model: `src/models/Recognition.js`

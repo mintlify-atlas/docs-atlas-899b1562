@@ -1,0 +1,276 @@
+---
+title: 'Recognition Wall'
+description: 'Display public recognition feed for a hospital to motivate teams'
+api: 'GET /api/recognition/wall/:hospitalId'
+---
+
+## Overview
+
+Retrieve a public feed of recent recognitions for a specific hospital. This creates a "recognition wall" to celebrate employee achievements and foster team motivation.
+
+## Authentication
+
+This endpoint requires authentication.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Endpoint
+
+```
+GET /api/recognition/wall/:hospitalId
+```
+
+## Path Parameters
+
+<ParamField path="hospitalId" type="string" required>
+  The unique identifier of the hospital
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="limit" type="number">
+  Maximum number of recognitions to return. Default: 10
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data.recognitions" type="array">
+  Array of public recognition objects, sorted by most recent first
+  
+  <Expandable title="recognition properties">
+    <ResponseField name="_id" type="string">
+      Recognition unique identifier
+    </ResponseField>
+    
+    <ResponseField name="employeeId" type="object">
+      Populated employee information
+      
+      <Expandable title="employeeId properties">
+        <ResponseField name="_id" type="string">
+          Employee unique identifier
+        </ResponseField>
+        
+        <ResponseField name="personalInfo.name" type="string">
+          Employee's full name
+        </ResponseField>
+        
+        <ResponseField name="jobInfo.position" type="string">
+          Employee's job position (e.g., "enfermero", "medico")
+        </ResponseField>
+        
+        <ResponseField name="jobInfo.department" type="string">
+          Employee's department (e.g., "urgencias", "hospitalizacion")
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="recognitionType" type="string">
+      Type of recognition
+    </ResponseField>
+    
+    <ResponseField name="rewardType" type="string">
+      Type of reward: `puntos`, `diploma`, `mencion`, `premio_fisico`
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Recognition title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Recognition description
+    </ResponseField>
+    
+    <ResponseField name="pointsAwarded" type="number">
+      Points awarded
+    </ResponseField>
+    
+    <ResponseField name="badgeEarned" type="string">
+      Badge name earned
+    </ResponseField>
+    
+    <ResponseField name="issuedAt" type="string">
+      ISO 8601 timestamp of when recognition was issued
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.cuido.com/api/recognition/wall/HOSPITAL_001?limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const hospitalId = 'HOSPITAL_001';
+const response = await fetch(`https://api.cuido.com/api/recognition/wall/${hospitalId}?limit=10`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+console.log(data.data.recognitions);
+```
+
+```python Python
+import requests
+
+hospital_id = "HOSPITAL_001"
+url = f"https://api.cuido.com/api/recognition/wall/{hospital_id}?limit=10"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN"
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Muro de reconocimiento obtenido",
+  "data": {
+    "recognitions": [
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e7",
+        "employeeId": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e2",
+          "personalInfo": {
+            "name": "María García"
+          },
+          "jobInfo": {
+            "position": "enfermero",
+            "department": "urgencias"
+          }
+        },
+        "recognitionType": "empleado_mes",
+        "rewardType": "mencion",
+        "title": "¡Empleado del Mes!",
+        "description": "Reconocimiento por tu excelente desempeño",
+        "pointsAwarded": 100,
+        "badgeEarned": "estrella",
+        "issuedAt": "2024-01-15T10:30:00.000Z"
+      },
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e8",
+        "employeeId": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e3",
+          "personalInfo": {
+            "name": "Carlos López"
+          },
+          "jobInfo": {
+            "position": "medico",
+            "department": "hospitalizacion"
+          }
+        },
+        "recognitionType": "curso_terminado",
+        "rewardType": "diploma",
+        "title": "¡Curso Completado!",
+        "description": "Has terminado exitosamente tu capacitación",
+        "pointsAwarded": 20,
+        "badgeEarned": "aprendiz",
+        "issuedAt": "2024-01-14T15:20:00.000Z"
+      },
+      {
+        "_id": "65a1b2c3d4e5f6a7b8c9d0e9",
+        "employeeId": {
+          "_id": "65a1b2c3d4e5f6a7b8c9d0e4",
+          "personalInfo": {
+            "name": "Ana Martínez"
+          },
+          "jobInfo": {
+            "position": "auxiliar_enfermeria",
+            "department": "urgencias"
+          }
+        },
+        "recognitionType": "encuesta_completada",
+        "rewardType": "puntos",
+        "title": "¡Encuesta Completada!",
+        "description": "Gracias por compartir tu feedback semanal",
+        "pointsAwarded": 5,
+        "badgeEarned": "participativo",
+        "issuedAt": "2024-01-14T09:15:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+## Privacy & Filtering
+
+The recognition wall service (`src/services/recognitionService.js:73`) implements:
+
+- **Public Only**: Only shows recognitions where `isPublic = true`
+- **Hospital Filter**: Matches employees to their `hospitalId`
+- **Recent First**: Sorted by `issuedAt` in descending order
+- **Populated Data**: Includes employee name, position, and department
+
+## Use Cases
+
+1. **Dashboard Display**: Show recent recognitions on hospital dashboard
+2. **Team Motivation**: Public celebration of achievements
+3. **Gamification**: Encourage participation through visibility
+4. **Culture Building**: Reinforce organizational values
+
+## Error Responses
+
+<Tabs>
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="500 Server Error">
+    ```json
+    {
+      "success": false,
+      "message": "Error obteniendo muro de reconocimiento"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Implementation Notes
+
+The wall uses MongoDB's population feature:
+
+1. Query recognitions with `isPublic = true`
+2. Populate `employeeId` with employee details
+3. Filter by matching `hospitalId` in populated employee
+4. Sort by `issuedAt` descending
+5. Limit results to requested amount
+
+## Frontend Integration
+
+Consider implementing:
+
+- **Auto-refresh**: Poll endpoint every 30-60 seconds for live updates
+- **Animations**: Celebrate new recognitions with visual effects
+- **Filters**: Allow filtering by department or recognition type
+- **Social Sharing**: Enable employees to share their recognitions
+
+## Source Code References
+
+- Route: `src/routes/recognitionRoutes.js:18`
+- Controller: `src/controllers/recognitionController.js:15`
+- Service: `src/services/recognitionService.js:73`
+- Model: `src/models/Recognition.js`

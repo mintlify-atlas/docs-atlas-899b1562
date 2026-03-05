@@ -1,0 +1,520 @@
+---
+title: 'Diagnostic Module'
+description: 'Real-time wellness diagnostics with AI-powered sentiment analysis, risk assessment, and smart alerts for healthcare professionals'
+---
+
+## Overview
+
+The Diagnostic module is the core of CUIDO's employee wellness monitoring system. It combines quick surveys, AI-powered sentiment analysis, and intelligent risk assessment to identify at-risk employees before burnout or turnover occurs.
+
+<Note>
+The diagnostic system processes over 1,443 lines of sophisticated logic including Claude AI integration, gamification, and pattern detection algorithms.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Quick Surveys" icon="clipboard-check">
+    Gamified 3-5 question surveys that employees can complete in under 3 minutes
+  </Card>
+  <Card title="AI Sentiment Analysis" icon="brain">
+    Claude-powered analysis of free-text responses to detect emotional distress
+  </Card>
+  <Card title="Wellness Heatmaps" icon="chart-heatmap">
+    Visual department-level wellness metrics with color-coded risk levels
+  </Card>
+  <Card title="Smart Alerts" icon="bell">
+    Automated pattern detection with actionable recommendations for HR and supervisors
+  </Card>
+</CardGroup>
+
+---
+
+## Quick Survey System
+
+### Survey Structure
+
+The quick survey collects essential wellness indicators:
+
+```javascript
+responses: {
+  moodToday: 'muy_mal' | 'mal' | 'regular' | 'bien' | 'muy_bien',
+  workloadLevel: 1-5,  // 1=very light, 5=overloaded
+  teamSupport: 1-5,     // 1=no support, 5=excellent support
+  jobSatisfaction: 1-10,
+  freeText: String      // Optional 280-char comment
+}
+```
+
+### Processing a Survey
+
+<Steps>
+  <Step title="Submit Survey Response">
+    Employee completes the quick survey via the API:
+    
+    ```javascript
+    POST /api/diagnostic/survey/quick
+    {
+      "employeeId": "507f1f77bcf86cd799439011",
+      "responses": {
+        "moodToday": "regular",
+        "workloadLevel": 4,
+        "teamSupport": 3,
+        "jobSatisfaction": 6,
+        "freeText": "Demasiados pacientes hoy, equipo con poco personal"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Risk Score Calculation">
+    The system calculates a weighted risk score from the responses:
+    
+    ```javascript
+    // From diagnosticService.js:153-191
+    async calculateRiskScore(responses, employee) {
+      const weights = {
+        moodToday: 0.3,
+        workloadLevel: 0.25,
+        teamSupport: 0.2,
+        jobSatisfaction: 0.25
+      };
+      
+      // Convert to 0-1 scale (inverted for workload)
+      const scores = {
+        moodToday: this.moodToScore(responses.moodToday),
+        workloadLevel: (6 - responses.workloadLevel) / 5,
+        teamSupport: responses.teamSupport / 5,
+        jobSatisfaction: responses.jobSatisfaction / 10
+      };
+      
+      // Calculate weighted risk score
+      let riskScore = 0;
+      Object.keys(weights).forEach(key => {
+        riskScore += (1 - scores[key]) * weights[key];
+      });
+      
+      // Adjust by employee factors
+      const adjustments = await this.getEmployeeRiskAdjustments(employee);
+      riskScore = Math.min(1, riskScore * adjustments);
+      
+      return {
+        riskScore: Math.round(riskScore * 100),
+        riskLevel: riskScore < 0.3 ? 'bajo' : 
+                   riskScore < 0.7 ? 'medio' : 'alto'
+      };
+    }
+    ```
+  </Step>
+  
+  <Step title="AI Sentiment Analysis">
+    If free text is provided, Claude analyzes emotional content:
+    
+    ```javascript
+    // From diagnosticService.js:62-150
+    async analyzeTextWithAI(employeeId, text, context = 'feedback') {
+      const prompt = `
+      Eres un especialista en bienestar laboral del sector salud.
+      Analiza el siguiente comentario y proporciona:
+      
+      1. Análisis de sentimiento (muy_positivo, positivo, neutro, negativo, muy_negativo)
+      2. Puntuación emocional (-1 a 1)
+      3. Nivel de confianza (0 a 1)
+      4. Palabras clave importantes con su categoría
+      5. Indicadores de riesgo si los hay
+      6. Puntuación de riesgo de rotación (0-100)
+      7. Recomendaciones específicas
+      `;
+      
+      const message = await anthropic.messages.create({
+        model: 'claude-3-sonnet-20240229',
+        max_tokens: 1000,
+        temperature: 0.3,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      
+      const analysis = JSON.parse(message.content[0].text);
+      
+      // Save to database
+      const sentimentAnalysis = new SentimentAnalysis({
+        employeeId,
+        text,
+        analysis,
+        riskScore: analysis.riskScore
+      });
+      
+      await sentimentAnalysis.save();
+      
+      // Generate high-risk alert if needed
+      if (analysis.riskScore > 70) {
+        await this.generateHighRiskAlert(employeeId, analysis);
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Gamification Rewards">
+    Employees earn points and badges for participation:
+    
+    ```javascript
+    // Base points for completion
+    employee.gamification.totalPoints += 5;
+    employee.updateStreak();
+    employee.gamification.level = employee.calculateLevel();
+    
+    // Check for badges
+    if (employee.gamification.currentStreak >= 7) {
+      badges.push({
+        name: 'Participación Semanal',
+        description: '7 días consecutivos respondiendo encuestas',
+        earnedAt: new Date()
+      });
+    }
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Risk Assessment Algorithms
+
+### Employee Risk Adjustments
+
+The system adjusts base risk scores based on contextual factors:
+
+<Accordion title="Tenure-Based Risk Factors">
+  ```javascript
+  // From diagnosticService.js:206-239
+  async getEmployeeRiskAdjustments(employee) {
+    let adjustment = 1.0;
+    
+    // New employees have higher risk
+    const monthsWorking = Math.floor(
+      (Date.now() - employee.jobInfo.startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+    );
+    if (monthsWorking < 6) adjustment *= 1.2;
+    else if (monthsWorking < 12) adjustment *= 1.1;
+    
+    // High-stress departments
+    if (['urgencias', 'uci'].includes(employee.jobInfo.department)) {
+      adjustment *= 1.15;
+    }
+    
+    // Night shift workers
+    if (employee.jobInfo.shift === 'noche') {
+      adjustment *= 1.1;
+    }
+    
+    return Math.min(2.0, adjustment); // Max 2x adjustment
+  }
+  ```
+</Accordion>
+
+<Accordion title="Historical Pattern Analysis">
+  ```javascript
+  // From diagnosticService.js:771-833
+  async checkHistoricalPatterns(employeeId) {
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    
+    // Get recent surveys
+    const recentSurveys = await QuickSurvey.find({
+      employeeId,
+      completedAt: { $gte: twoWeeksAgo }
+    }).sort({ completedAt: 1 });
+    
+    if (recentSurveys.length < 3) return;
+    
+    // Detect negative trend
+    const riskScores = recentSurveys.map(s => s.analysis.riskScore);
+    const isIncreasingRisk = this.detectIncreasingTrend(riskScores);
+    
+    if (isIncreasingRisk && riskScores[riskScores.length - 1] > 60) {
+      await this.generateTrendAlert(employeeId, riskScores);
+    }
+  }
+  
+  detectIncreasingTrend(scores) {
+    if (scores.length < 3) return false;
+    
+    let increasingCount = 0;
+    for (let i = 1; i < scores.length; i++) {
+      if (scores[i] > scores[i - 1]) increasingCount++;
+    }
+    
+    return increasingCount >= Math.floor(scores.length * 0.6);
+  }
+  ```
+</Accordion>
+
+---
+
+## Wellness Heatmaps
+
+Visualize department-level wellness metrics with color-coded risk indicators.
+
+### Generate Heatmap
+
+```javascript
+// From diagnosticService.js:304-389
+async generateWellnessHeatmap(hospitalId, period = 'weekly') {
+  const departments = ['urgencias', 'hospitalizacion', 'consulta_externa', 'administracion'];
+  const heatmapData = [];
+  
+  for (const dept of departments) {
+    const employees = await Employee.find({
+      hospitalId,
+      'jobInfo.department': dept,
+      isActive: true
+    });
+    
+    // Calculate average mood
+    const avgMood = employees.reduce((sum, emp) => 
+      sum + (emp.wellnessMetrics?.currentMoodScore || 3), 0) / employees.length;
+    
+    // Calculate risk distribution
+    const riskDistribution = employees.reduce((acc, emp) => {
+      const risk = emp.wellnessMetrics?.riskLevel || 'bajo';
+      acc[risk] = (acc[risk] || 0) + 1;
+      return acc;
+    }, { bajo: 0, medio: 0, alto: 0 });
+    
+    const wellnessValue = (avgMood / 5) * 100;
+    
+    // Assign color based on wellness
+    let color;
+    if (wellnessValue >= 80) color = '#10B981';      // Green
+    else if (wellnessValue >= 60) color = '#F59E0B'; // Yellow
+    else if (wellnessValue >= 40) color = '#EF4444'; // Red
+    else color = '#DC2626';                           // Dark red
+    
+    heatmapData.push({
+      area: dept,
+      value: Math.round(wellnessValue),
+      color,
+      employeeCount: employees.length,
+      metrics: { averageMood: Math.round(avgMood * 10) / 10, riskDistribution }
+    });
+  }
+  
+  return {
+    heatmapData,
+    summary: {
+      averageWellness: Math.round(heatmapData.reduce((sum, d) => sum + d.value, 0) / heatmapData.length),
+      criticalAreas: heatmapData.filter(d => d.value < 40).map(d => d.area)
+    }
+  };
+}
+```
+
+### API Usage
+
+```javascript
+GET /api/diagnostic/wellness-heatmap/:hospitalId?period=weekly
+
+Response:
+{
+  "heatmapData": [
+    {
+      "area": "urgencias",
+      "value": 65,
+      "color": "#F59E0B",
+      "employeeCount": 24,
+      "metrics": {
+        "averageMood": 3.2,
+        "riskDistribution": { "bajo": 10, "medio": 10, "alto": 4 }
+      }
+    }
+  ],
+  "summary": {
+    "averageWellness": 72,
+    "criticalAreas": []
+  }
+}
+```
+
+---
+
+## Smart Alerts System
+
+### Automated Alert Generation
+
+The system generates alerts automatically based on detected patterns:
+
+<Steps>
+  <Step title="Pattern Detection">
+    Multiple algorithms scan for risk patterns:
+    
+    ```javascript
+    // From diagnosticService.js:515-538
+    async generateSmartAlerts() {
+      const alerts = [];
+      
+      // Pattern 1: Employees with 3+ medium/high risk surveys
+      const employeesAtRisk = await this.findEmployeesWithRiskPattern();
+      
+      // Pattern 2: Low departmental participation
+      const lowParticipationDepts = await this.findLowParticipationDepartments();
+      
+      // Pattern 3: Recurring negative sentiment
+      const negativeTeamMembers = await this.findNegativeSentimentPatterns();
+      
+      return alerts;
+    }
+    ```
+  </Step>
+  
+  <Step title="Alert Creation">
+    Alerts include severity, recommendations, and assigned roles:
+    
+    ```javascript
+    // From diagnosticService.js:402-434
+    async generateRiskAlert(employeeId, riskAnalysis) {
+      const alert = new SmartAlert({
+        employeeId,
+        type: 'riesgo_rotacion',
+        severity: 'alta',
+        description: `Empleado presenta riesgo alto de rotación (${riskAnalysis.riskScore}%)`,
+        triggerData: {
+          pattern: 'encuesta_alto_riesgo',
+          metrics: riskAnalysis,
+          confidence: 0.8
+        },
+        recommendations: [
+          {
+            action: 'Programar entrevista individual con supervisor',
+            priority: 'alta',
+            estimatedImpact: 'Identificar causas específicas del malestar',
+            assignedTo: { role: 'supervisor', department: employee.jobInfo.department }
+          },
+          {
+            action: 'Evaluar carga de trabajo actual',
+            priority: 'media',
+            estimatedImpact: 'Reducir estrés laboral',
+            assignedTo: { role: 'rh' }
+          }
+        ]
+      });
+      
+      await alert.save();
+    }
+    ```
+  </Step>
+  
+  <Step title="Auto-Escalation">
+    Critical alerts automatically escalate:
+    
+    ```javascript
+    // From smartAlertSchema (models/SmartAlert.js:90-99)
+    smartAlertSchema.methods.autoEscalate = function() {
+      if (this.severity === 'critica' && !this.escalated) {
+        this.escalated = true;
+        this.escalationHistory.push({
+          escalatedAt: new Date(),
+          escalatedTo: 'direccion_medica',
+          reason: 'Escalación automática por severidad crítica'
+        });
+      }
+    };
+    ```
+  </Step>
+</Steps>
+
+### Alert Types
+
+<Warning>
+The system monitors for seven distinct alert types:
+- `riesgo_rotacion`: Flight risk detection
+- `burnout_detectado`: Burnout indicators
+- `bajo_rendimiento`: Performance decline
+- `falta_participacion`: Low engagement
+- `sentimiento_negativo`: Negative sentiment patterns
+- `sobrecarga_trabajo`: Work overload
+- `falta_apoyo_equipo`: Lack of team support
+</Warning>
+
+---
+
+## Department Analytics
+
+### Generate Department Risk Report
+
+```javascript
+// From diagnosticService.js:1077-1175
+async generateDepartmentRiskAnalysis(departmentId) {
+  const employees = await Employee.find({
+    'jobInfo.department': departmentId,
+    isActive: true
+  });
+  
+  const metrics = {
+    totalEmployees: employees.length,
+    riskDistribution: employees.reduce((acc, emp) => {
+      const risk = emp.wellnessMetrics?.riskLevel || 'bajo';
+      acc[risk] = (acc[risk] || 0) + 1;
+      return acc;
+    }, { bajo: 0, medio: 0, alto: 0 }),
+    averageMood: this.calculateAverageMood(employees),
+    participationRate: Math.round((recentSurveys.length / employees.length) * 100)
+  };
+  
+  const patterns = await this.identifyDepartmentPatterns(departmentId, employees);
+  const recommendations = this.generateDepartmentRecommendations(metrics, patterns);
+  
+  return { metrics, patterns, recommendations };
+}
+```
+
+---
+
+## API Reference
+
+### Endpoints
+
+<CodeGroup>
+```javascript POST /api/diagnostic/survey/quick
+// Submit quick survey
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "responses": {
+    "moodToday": "bien",
+    "workloadLevel": 3,
+    "teamSupport": 4,
+    "jobSatisfaction": 7
+  }
+}
+```
+
+```javascript GET /api/diagnostic/wellness-heatmap/:hospitalId
+// Get wellness heatmap
+GET /api/diagnostic/wellness-heatmap/507f1f77bcf86cd799439011?period=weekly
+```
+
+```javascript GET /api/diagnostic/alerts
+// Get smart alerts
+GET /api/diagnostic/alerts?status=nueva&limit=20
+```
+
+```javascript GET /api/diagnostic/survey/history/:employeeId
+// Get employee survey history
+GET /api/diagnostic/survey/history/507f1f77bcf86cd799439011?limit=10
+```
+</CodeGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Mentorship Module" icon="comments" href="/modules/mentorship">
+    Learn about AI-powered 24/7 virtual mentoring
+  </Card>
+  <Card title="Smart Alerts" icon="bell" href="/api/diagnostic/alerts">
+    Deep dive into alert configuration and workflows
+  </Card>
+  <Card title="Correlation Analytics" icon="chart-line" href="/modules/correlation">
+    See how wellness correlates with hospital performance
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/diagnostic/survey">
+    Complete API documentation for the Diagnostic module
+  </Card>
+</CardGroup>

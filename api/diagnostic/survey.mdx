@@ -1,0 +1,252 @@
+---
+title: Quick Survey
+description: Submit and process quick employee wellness surveys with risk analysis and gamification
+---
+
+## Process Quick Survey
+
+Submit a quick employee wellness survey that evaluates mood, workload, team support, and job satisfaction. The system automatically calculates risk scores, awards gamification points, and generates alerts when high-risk patterns are detected.
+
+<Note>
+  Employees earn **5 points** for completing each survey. Completing surveys builds streaks and unlocks badges.
+</Note>
+
+```bash
+POST /api/diagnostic/survey/quick
+```
+
+### Authentication
+
+Requires authentication via JWT token in the Authorization header.
+
+### Request Body
+
+<ParamField body="employeeId" type="string" required>
+  The unique identifier of the employee completing the survey
+</ParamField>
+
+<ParamField body="responses" type="object" required>
+  Survey responses object containing wellness metrics
+  
+  <Expandable title="responses fields">
+    <ParamField body="responses.moodToday" type="string" required>
+      Employee's mood today. Possible values:
+      - `muy_mal` - Very bad
+      - `mal` - Bad
+      - `regular` - Regular
+      - `bien` - Good
+      - `muy_bien` - Very good
+    </ParamField>
+    
+    <ParamField body="responses.workloadLevel" type="number" required>
+      Current workload level from 1-5
+      - `1` - Very light workload
+      - `5` - Overloaded
+    </ParamField>
+    
+    <ParamField body="responses.teamSupport" type="number" required>
+      Level of team support from 1-5
+      - `1` - No support
+      - `5` - Excellent support
+    </ParamField>
+    
+    <ParamField body="responses.jobSatisfaction" type="number" required>
+      Job satisfaction score from 1-10
+      - `1` - Very dissatisfied
+      - `10` - Very satisfied
+    </ParamField>
+    
+    <ParamField body="responses.freeText" type="string">
+      Optional free-text comment (max 280 characters). When provided, AI sentiment analysis is performed using Claude to extract emotional indicators and generate personalized recommendations.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Request Example
+
+```json
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "responses": {
+    "moodToday": "bien",
+    "workloadLevel": 4,
+    "teamSupport": 3,
+    "jobSatisfaction": 7,
+    "freeText": "La carga de trabajo ha aumentado pero el equipo es muy colaborativo"
+  }
+}
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Response data object
+  
+  <Expandable title="data fields">
+    <ResponseField name="data.survey" type="object">
+      Complete survey record including responses and analysis
+      
+      <Expandable title="survey fields">
+        <ResponseField name="survey._id" type="string">
+          Unique identifier for the survey
+        </ResponseField>
+        
+        <ResponseField name="survey.employeeId" type="string">
+          Employee identifier
+        </ResponseField>
+        
+        <ResponseField name="survey.responses" type="object">
+          The submitted survey responses
+        </ResponseField>
+        
+        <ResponseField name="survey.analysis" type="object">
+          Risk analysis results
+          
+          <Expandable title="analysis fields">
+            <ResponseField name="analysis.riskScore" type="number">
+              Overall risk score from 0-100. Higher values indicate greater risk of turnover or burnout.
+            </ResponseField>
+            
+            <ResponseField name="analysis.riskLevel" type="string">
+              Risk categorization: `bajo` (low), `medio` (medium), or `alto` (high)
+            </ResponseField>
+            
+            <ResponseField name="analysis.factors" type="object">
+              Individual factor scores (0-1) showing contribution to overall risk
+              - `moodToday`: Mood score converted to 0-1 scale
+              - `workloadLevel`: Workload impact (inverted - higher workload = higher risk)
+              - `teamSupport`: Support level score
+              - `jobSatisfaction`: Satisfaction score
+            </ResponseField>
+            
+            <ResponseField name="analysis.adjustments" type="number">
+              Risk adjustment multiplier based on employee factors:
+              - New employees (less than 6 months): 1.2x
+              - High-stress departments (ER, ICU): 1.15x
+              - Night shift: 1.1x
+              - Recent high-risk survey history: 1.2x
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        
+        <ResponseField name="survey.pointsEarned" type="number">
+          Gamification points earned (always 5 for standard surveys)
+        </ResponseField>
+        
+        <ResponseField name="survey.completedAt" type="string">
+          ISO 8601 timestamp when survey was completed
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="data.pointsEarned" type="number">
+      Points awarded for completing the survey (5)
+    </ResponseField>
+    
+    <ResponseField name="data.riskLevel" type="string">
+      Quick access to risk level: `bajo`, `medio`, or `alto`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Encuesta procesada exitosamente",
+  "data": {
+    "survey": {
+      "_id": "507f1f77bcf86cd799439012",
+      "employeeId": "507f1f77bcf86cd799439011",
+      "responses": {
+        "moodToday": "bien",
+        "workloadLevel": 4,
+        "teamSupport": 3,
+        "jobSatisfaction": 7,
+        "freeText": "La carga de trabajo ha aumentado pero el equipo es muy colaborativo"
+      },
+      "analysis": {
+        "riskScore": 42,
+        "riskLevel": "medio",
+        "factors": {
+          "moodToday": 0.7,
+          "workloadLevel": 0.4,
+          "teamSupport": 0.6,
+          "jobSatisfaction": 0.7
+        },
+        "adjustments": 1.15
+      },
+      "pointsEarned": 5,
+      "completedAt": "2026-03-05T10:30:00.000Z"
+    },
+    "pointsEarned": 5,
+    "riskLevel": "medio"
+  }
+}
+```
+
+## Risk Score Calculation
+
+The risk score is calculated using a weighted formula that considers multiple factors:
+
+### Weighting System
+
+- **Mood** (30%): Emotional state impacts overall wellbeing
+- **Workload** (25%): High workload is a primary burnout indicator
+- **Team Support** (20%): Social support buffers against stress
+- **Job Satisfaction** (25%): Overall job satisfaction
+
+### Adjustment Factors
+
+Risk scores are adjusted based on employee characteristics in `diagnosticService.js:206-239`:
+
+- **Tenure**: New employees (less than 6 months) have 1.2x risk multiplier
+- **Department**: High-stress departments (ER, ICU) add 1.15x multiplier
+- **Shift**: Night shift workers have 1.1x multiplier
+- **History**: Employees with recent high-risk surveys get 1.2x multiplier
+
+### Risk Levels
+
+- **Bajo** (Low): Risk score < 30
+- **Medio** (Medium): Risk score 30-69
+- **Alto** (High): Risk score ≥ 70
+
+<Warning>
+  When risk level is `alto`, the system automatically generates a SmartAlert for supervisor intervention. See `diagnosticService.js:392-434`.
+</Warning>
+
+## Automated Actions
+
+When a survey is processed, the system automatically:
+
+1. **Updates Employee Metrics** - Refreshes `wellnessMetrics` on the employee record
+2. **Awards Gamification Points** - Adds 5 points and updates streaks/levels
+3. **Checks for Badges** - Awards badges for participation streaks (7, 10, 15, 30 days)
+4. **Performs AI Analysis** - If `freeText` is provided, Claude analyzes sentiment and generates recommendations
+5. **Generates Alerts** - Creates SmartAlerts for high-risk employees or concerning patterns
+
+## AI Sentiment Analysis
+
+When free text is provided, Claude (Sonnet 3) analyzes the comment to extract:
+
+- Sentiment classification (very positive to very negative)
+- Emotional score (-1 to 1)
+- Risk indicators and keywords
+- Turnover risk score (0-100)
+- Personalized recommendations with priority levels
+
+See implementation in `diagnosticService.js:62-150`.
+
+## Related Endpoints
+
+- [Wellness Heatmap](/api/diagnostic/wellness-heatmap) - View department-level wellness trends
+- [Smart Alerts](/api/diagnostic/alerts) - Manage alerts generated from survey responses

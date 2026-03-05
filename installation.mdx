@@ -1,0 +1,565 @@
+---
+title: Installation
+description: Complete installation guide for CUIDO Backend with all prerequisites and setup steps
+---
+
+# Installation Guide
+
+This guide covers the complete installation process for CUIDO Backend, including all prerequisites, dependencies, and configuration steps.
+
+## System Requirements
+
+### Required Software
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    **Version**: >= 18.0.0
+    
+    Download from [nodejs.org](https://nodejs.org/)
+  </Card>
+  <Card title="npm" icon="box">
+    **Version**: >= 8.0.0
+    
+    Included with Node.js
+  </Card>
+  <Card title="MongoDB" icon="database">
+    **Version**: >= 5.0
+    
+    Download from [mongodb.com](https://www.mongodb.com/try/download/community)
+  </Card>
+  <Card title="Git" icon="git">
+    **Latest stable version**
+    
+    Download from [git-scm.com](https://git-scm.com/)
+  </Card>
+</CardGroup>
+
+### Verify Prerequisites
+
+Check that you have the required versions installed:
+
+```bash
+# Check Node.js version
+node --version
+# Should output: v18.0.0 or higher
+
+# Check npm version
+npm --version
+# Should output: 8.0.0 or higher
+
+# Check MongoDB version
+mongod --version
+# Should output: db version v5.0.0 or higher
+
+# Check Git version
+git --version
+# Should output: git version 2.x.x or higher
+```
+
+<Note>
+  If any version is below the minimum requirement, update to a compatible version before proceeding.
+</Note>
+
+## Step 1: Clone the Repository
+
+Clone the CUIDO Backend repository from GitHub:
+
+```bash
+git clone https://github.com/JuanMartinezL/CUIDO_Back.git
+cd CUIDO_Back
+```
+
+Verify the repository structure:
+
+```bash
+ls -la
+```
+
+You should see:
+```
+├── server.js           # Main entry point
+├── package.json        # Dependencies and scripts
+├── src/               # Source code
+│   ├── app.js         # Express app configuration
+│   ├── config/        # Configuration files
+│   ├── controllers/   # Request handlers
+│   ├── models/        # Mongoose models
+│   ├── routes/        # API routes
+│   ├── services/      # Business logic
+│   ├── middleware/    # Custom middleware
+│   ├── utils/         # Utility functions
+│   └── validators/    # Input validation schemas
+├── scripts/           # Utility scripts
+└── logs/             # Log files (created at runtime)
+```
+
+## Step 2: Install Dependencies
+
+Install all required npm packages:
+
+```bash
+npm install
+```
+
+This will install the following production dependencies:
+
+### Core Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `express` | ^5.1.0 | Web framework |
+| `mongoose` | ^8.18.0 | MongoDB ODM |
+| `@anthropic-ai/sdk` | ^0.61.0 | Claude AI integration |
+
+### Authentication & Security
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `jsonwebtoken` | ^9.0.2 | JWT token generation |
+| `bcryptjs` | ^3.0.2 | Password hashing |
+| `helmet` | ^8.1.0 | Security headers |
+| `cors` | ^2.8.5 | Cross-origin resource sharing |
+| `express-rate-limit` | ^8.1.0 | Rate limiting |
+
+### Validation
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `zod` | ^4.1.5 | Schema validation |
+| `express-validator` | ^7.2.1 | Request validation |
+
+### Utilities
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `dotenv` | ^17.2.2 | Environment variables |
+| `winston` | ^3.17.0 | Logging |
+| `winston-daily-rotate-file` | ^5.0.0 | Log rotation |
+| `morgan` | ^1.10.1 | HTTP request logging |
+| `compression` | ^1.8.1 | Response compression |
+| `socket.io` | ^4.8.1 | Real-time communication |
+| `node-cron` | ^4.2.1 | Scheduled tasks |
+
+### NLP & Analysis
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `natural` | ^8.1.0 | Natural language processing |
+| `sentiment` | ^5.0.2 | Sentiment analysis |
+
+### Development Dependencies
+
+```bash
+# Automatically installed with npm install
+- nodemon         # Auto-reload in development
+- jest            # Testing framework
+- supertest       # HTTP testing
+- eslint          # Code linting
+- cross-env       # Cross-platform env variables
+```
+
+<Tip>
+  The installation may take 2-5 minutes depending on your internet connection and system speed.
+</Tip>
+
+## Step 3: MongoDB Setup
+
+### Option A: Local MongoDB Installation
+
+#### macOS (using Homebrew)
+
+```bash
+# Install MongoDB Community Edition
+brew tap mongodb/brew
+brew install mongodb-community@5.0
+
+# Start MongoDB service
+brew services start mongodb-community@5.0
+
+# Verify MongoDB is running
+brew services list | grep mongodb
+```
+
+#### Ubuntu/Debian Linux
+
+```bash
+# Import MongoDB public GPG key
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+
+# Create list file
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+
+# Update package database
+sudo apt-get update
+
+# Install MongoDB
+sudo apt-get install -y mongodb-org
+
+# Start MongoDB
+sudo systemctl start mongod
+
+# Enable MongoDB to start on boot
+sudo systemctl enable mongod
+
+# Verify status
+sudo systemctl status mongod
+```
+
+#### Windows
+
+1. Download MongoDB Community Server from [mongodb.com](https://www.mongodb.com/try/download/community)
+2. Run the installer (.msi file)
+3. Choose "Complete" installation
+4. Install MongoDB as a service
+5. Verify by opening Command Prompt and running:
+
+```cmd
+mongod --version
+```
+
+### Option B: Docker MongoDB
+
+```bash
+# Pull MongoDB 5.0 image
+docker pull mongo:5.0
+
+# Run MongoDB container
+docker run -d \
+  --name mongodb \
+  -p 27017:27017 \
+  -e MONGO_INITDB_ROOT_USERNAME=admin \
+  -e MONGO_INITDB_ROOT_PASSWORD=password \
+  -v mongodb_data:/data/db \
+  mongo:5.0
+
+# Verify container is running
+docker ps | grep mongodb
+```
+
+<Warning>
+  For production, use strong credentials and enable authentication. Never expose MongoDB without authentication.
+</Warning>
+
+### Option C: MongoDB Atlas (Cloud)
+
+1. Create free account at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+2. Create a new cluster (M0 free tier available)
+3. Configure network access (add your IP or allow from anywhere for testing)
+4. Create database user
+5. Get connection string:
+
+```
+mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/claude-prompt-db?retryWrites=true&w=majority
+```
+
+## Step 4: Anthropic API Key
+
+1. Sign up at [console.anthropic.com](https://console.anthropic.com/)
+2. Navigate to **API Keys** section
+3. Click **Create Key**
+4. Copy the key (starts with `sk-ant-`)
+
+<Warning>
+  Your API key grants access to paid services. Keep it secure and never commit it to version control.
+</Warning>
+
+## Step 5: Environment Configuration
+
+Create your environment file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your preferred text editor:
+
+```bash
+# Use your preferred editor
+nano .env
+# or
+vim .env
+# or
+code .env
+```
+
+Complete configuration template:
+
+```env
+# ===================================
+# Server Configuration
+# ===================================
+PORT=3000
+NODE_ENV=development
+
+# ===================================
+# Database Configuration
+# ===================================
+MONGODB_URI=mongodb://localhost:27017/claude-prompt-db
+
+# For MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.xxxxx.mongodb.net/claude-prompt-db
+
+# ===================================
+# JWT Authentication
+# ===================================
+JWT_SECRET=your_jwt_secret_super_secure_256_bits_minimum_change_this_in_production
+JWT_EXPIRES_IN=7d
+
+# ===================================
+# Anthropic Claude AI
+# ===================================
+ANTHROPIC_API_KEY=sk-ant-api03-your-actual-api-key-here
+CLAUDE_MODEL=claude-3-sonnet-20240229
+
+# Available models:
+# - claude-3-opus-20240229 (most capable, highest cost)
+# - claude-3-sonnet-20240229 (balanced performance/cost) ✓ Recommended
+# - claude-3-haiku-20240307 (fastest, lowest cost)
+
+# ===================================
+# CORS Configuration
+# ===================================
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+
+# ===================================
+# Socket.IO CORS
+# ===================================
+SOCKET_IO_CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+
+# ===================================
+# Rate Limiting
+# ===================================
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# ===================================
+# Logging
+# ===================================
+LOG_LEVEL=info
+LOG_FILE_PATH=./logs
+
+# ===================================
+# Scheduled Tasks
+# ===================================
+ENABLE_CRON_JOBS=false
+```
+
+<Note>
+  See the [Configuration](/configuration) page for detailed explanations of each variable.
+</Note>
+
+## Step 6: Database Seeding (Optional)
+
+Populate the database with initial data:
+
+```bash
+# Seed standard prompt templates
+npm run seed
+
+# Or seed CUIDO-specific data
+npm run seedCuido
+```
+
+This creates:
+- Default prompt templates for common use cases
+- Sample categories
+- Test data for development
+
+## Step 7: Start the Server
+
+### Development Mode
+
+```bash
+npm run dev
+```
+
+This uses `nodemon` for automatic reloading on file changes.
+
+### Production Mode
+
+```bash
+npm start
+```
+
+### Expected Output
+
+You should see console output similar to:
+
+```
+✓ Variables de entorno cargadas:
+ANTHROPIC_API_KEY configurada: true
+ANTHROPIC_API_KEY longitud: 108
+CLAUDE_MODEL: claude-3-sonnet-20240229
+✓ Configuración de Claude validada
+✓ Conectado exitosamente a la base de datos
+Base de datos conectada: localhost:27017
+✓ Conexión con Claude API validada exitosamente
+✓ Servidor corriendo en puerto 3000 (development)
+Módulo de Diagnóstico Inteligente activado
+✓ Notificaciones en tiempo real habilitadas
+✓ Tareas programadas iniciadas
+```
+
+## Verification
+
+Test your installation:
+
+<CodeGroup>
+
+```bash Health Check
+curl http://localhost:3000/health
+```
+
+```bash Register User
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test User",
+    "email": "test@example.com",
+    "password": "TestPass123!"
+  }'
+```
+
+```bash Login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "TestPass123!"
+  }'
+```
+
+</CodeGroup>
+
+## Running Tests
+
+Verify everything works by running the test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage report
+npm run test:coverage
+
+# Run in watch mode for development
+npm run test:watch
+```
+
+## Docker Installation (Alternative)
+
+If you prefer using Docker:
+
+```bash
+# Build the Docker image
+npm run docker:build
+
+# Run the container
+npm run docker:run
+```
+
+Or use Docker Compose (create `docker-compose.yml`):
+
+```yaml
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:
+```
+
+Then run:
+
+```bash
+docker-compose up -d
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Learn about all environment variables
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Make your first API call
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/auth/register">
+    Explore all endpoints
+  </Card>
+  <Card title="Deployment" icon="server" href="/development/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="npm install fails with EACCES error">
+    This is a permissions issue. Try:
+    
+    ```bash
+    sudo chown -R $(whoami) ~/.npm
+    npm install
+    ```
+  </Accordion>
+
+  <Accordion title="MongoDB connection timeout">
+    Ensure MongoDB is running:
+    
+    ```bash
+    # macOS
+    brew services list | grep mongodb
+    
+    # Linux
+    sudo systemctl status mongod
+    
+    # Check if port 27017 is open
+    netstat -an | grep 27017
+    ```
+  </Accordion>
+
+  <Accordion title="Module not found errors after installation">
+    Clear npm cache and reinstall:
+    
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm cache clean --force
+    npm install
+    ```
+  </Accordion>
+
+  <Accordion title="Server won't start - port already in use">
+    Find and kill the process using port 3000:
+    
+    ```bash
+    # macOS/Linux
+    lsof -ti:3000 | xargs kill -9
+    
+    # Or change the port in .env
+    PORT=3001
+    ```
+  </Accordion>
+
+  <Accordion title="ANTHROPIC_API_KEY validation error">
+    Ensure your API key:
+    - Starts with `sk-ant-`
+    - Has no extra spaces or line breaks
+    - Is from an active Anthropic account
+    - Has available credits
+  </Accordion>
+</AccordionGroup>

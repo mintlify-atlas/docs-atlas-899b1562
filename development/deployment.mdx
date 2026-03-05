@@ -1,0 +1,566 @@
+---
+title: 'Production Deployment'
+description: 'Deploy CUIDO Backend to production with Docker, environment configuration, and monitoring'
+---
+
+## Deployment Overview
+
+CUIDO Backend can be deployed in multiple ways:
+
+<CardGroup cols={3}>
+  <Card title="Docker" icon="docker">
+    Containerized deployment (recommended)
+  </Card>
+  <Card title="Node.js" icon="node">
+    Direct deployment with PM2 or systemd
+  </Card>
+  <Card title="Cloud Platforms" icon="cloud">
+    AWS, Azure, Google Cloud, or Heroku
+  </Card>
+</CardGroup>
+
+## Docker Deployment (Recommended)
+
+### Build Docker Image
+
+```bash
+npm run docker:build
+```
+
+This executes:
+```bash
+docker build -t claude-prompt-backend .
+```
+
+<Note>
+  Ensure you have a `Dockerfile` in the root directory. If not, create one based on the configuration below.
+</Note>
+
+### Dockerfile Example
+
+Create a `Dockerfile` in your project root:
+
+```dockerfile Dockerfile
+# Use official Node.js LTS image
+FROM node:18-alpine
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
+CMD ["node", "server.js"]
+```
+
+### Docker Compose
+
+Create a `docker-compose.yml` for easier orchestration:
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - cuido-network
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secure_password
+    restart: unless-stopped
+    networks:
+      - cuido-network
+
+volumes:
+  mongodb-data:
+
+networks:
+  cuido-network:
+    driver: bridge
+```
+
+### Run with Docker Compose
+
+<Steps>
+  <Step title="Start Services">
+    ```bash
+    docker-compose up -d
+    ```
+  </Step>
+
+  <Step title="View Logs">
+    ```bash
+    docker-compose logs -f app
+    ```
+  </Step>
+
+  <Step title="Stop Services">
+    ```bash
+    docker-compose down
+    ```
+  </Step>
+</Steps>
+
+### Run Single Container
+
+Alternatively, run the container directly:
+
+```bash
+npm run docker:run
+```
+
+This executes:
+```bash
+docker run -p 3000:3000 --env-file .env claude-prompt-backend
+```
+
+## Production Environment Variables
+
+<Warning>
+  Never commit `.env` files to version control. Use environment variable management tools in production.
+</Warning>
+
+Create a production `.env` file:
+
+```env .env.production
+# Server
+NODE_ENV=production
+PORT=3000
+
+# Database - Use connection string with authentication
+MONGODB_URI=mongodb://admin:password@mongodb:27017/cuido-prod?authSource=admin
+
+# Security
+JWT_SECRET=<generate-strong-secret-256-bits>
+
+# Claude AI
+ANTHROPIC_API_KEY=sk-ant-api03-your-production-key
+CLAUDE_MODEL=claude-3-sonnet-20240229
+
+# CORS - Production domains only
+ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+SOCKET_IO_CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+
+# Rate Limiting - Stricter in production
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=50
+
+# Scheduled Tasks
+ENABLE_CRON_JOBS=true
+
+# Logging
+LOG_LEVEL=info
+```
+
+### Generate Secure Secrets
+
+```bash
+# Generate JWT secret (256 bits)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+## Health Checks
+
+The application provides a health check endpoint at `/health`:
+
+### Endpoint Details
+
+```javascript
+GET /health
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Servicio funcionando correctamente",
+  "timestamp": "2026-03-05T21:43:00.000Z",
+  "environment": "production"
+}
+```
+
+### Using Health Checks
+
+<CodeGroup>
+  ```bash cURL
+  curl -f http://localhost:3000/health || exit 1
+  ```
+
+  ```dockerfile Dockerfile
+  HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  ```
+
+  ```yaml Kubernetes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 40
+    periodSeconds: 30
+  ```
+</CodeGroup>
+
+## Graceful Shutdown
+
+The application handles graceful shutdown for zero-downtime deployments:
+
+```javascript server.js
+const gracefulShutdown = (signal) => {
+  logger.info(`${signal} recibido. Cerrando servidor...`);
+  server.close(() => {
+    logger.info('Servidor cerrado exitosamente');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Signal Received">
+    Container receives `SIGTERM` signal (e.g., from `docker stop`)
+  </Step>
+
+  <Step title="Stop Accepting Requests">
+    Server stops accepting new connections
+  </Step>
+
+  <Step title="Complete In-Flight Requests">
+    Existing requests are allowed to complete
+  </Step>
+
+  <Step title="Close Database Connections">
+    MongoDB connections are closed gracefully
+  </Step>
+
+  <Step title="Exit">
+    Process exits with code 0
+  </Step>
+</Steps>
+
+<Tip>
+  When using Docker, set a stop timeout greater than your graceful shutdown period:
+  ```bash
+  docker stop --time=30 cuido-backend
+  ```
+</Tip>
+
+## Process Management
+
+For non-Docker deployments, use a process manager:
+
+### PM2 (Recommended)
+
+<Steps>
+  <Step title="Install PM2">
+    ```bash
+    npm install -g pm2
+    ```
+  </Step>
+
+  <Step title="Create Ecosystem File">
+    ```javascript ecosystem.config.js
+    module.exports = {
+      apps: [{
+        name: 'cuido-backend',
+        script: './server.js',
+        instances: 'max',
+        exec_mode: 'cluster',
+        env: {
+          NODE_ENV: 'production',
+          PORT: 3000
+        },
+        error_file: './logs/pm2-error.log',
+        out_file: './logs/pm2-out.log',
+        log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+        max_memory_restart: '1G',
+        autorestart: true,
+        watch: false
+      }]
+    };
+    ```
+  </Step>
+
+  <Step title="Start Application">
+    ```bash
+    pm2 start ecosystem.config.js
+    ```
+  </Step>
+
+  <Step title="Setup Auto-Start">
+    ```bash
+    pm2 startup
+    pm2 save
+    ```
+  </Step>
+</Steps>
+
+### systemd
+
+Create a systemd service:
+
+```ini /etc/systemd/system/cuido-backend.service
+[Unit]
+Description=CUIDO Backend
+After=network.target mongodb.service
+
+[Service]
+Type=simple
+User=nodejs
+WorkingDirectory=/opt/cuido-backend
+EnvironmentFile=/opt/cuido-backend/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable cuido-backend
+sudo systemctl start cuido-backend
+sudo systemctl status cuido-backend
+```
+
+## Monitoring & Logging
+
+### Winston Logging
+
+Logs are automatically written to:
+- **Console**: Formatted based on `NODE_ENV`
+- **Application logs**: `logs/application-%DATE%.log` (rotated daily)
+- **Error logs**: `logs/error-%DATE%.log` (errors only)
+
+### Log Levels
+
+```env
+# Set log level in production
+LOG_LEVEL=info  # error, warn, info, verbose, debug
+```
+
+### Monitoring Tools
+
+<CardGroup cols={2}>
+  <Card title="PM2 Monitoring" icon="chart-line">
+    ```bash
+    pm2 monit
+    pm2 logs
+    ```
+  </Card>
+
+  <Card title="Docker Logs" icon="docker">
+    ```bash
+    docker logs -f cuido-backend
+    docker stats cuido-backend
+    ```
+  </Card>
+</CardGroup>
+
+## Security Checklist
+
+<Steps>
+  <Step title="Environment Variables">
+    - [ ] Use strong, randomly generated secrets
+    - [ ] Never commit `.env` files
+    - [ ] Use secret management tools (AWS Secrets Manager, Vault)
+  </Step>
+
+  <Step title="HTTPS/TLS">
+    - [ ] Use reverse proxy (Nginx, Traefik) with TLS
+    - [ ] Enable HSTS headers (configured in `helmet`)
+    - [ ] Use valid SSL certificates (Let's Encrypt)
+  </Step>
+
+  <Step title="Database Security">
+    - [ ] Enable MongoDB authentication
+    - [ ] Use strong database passwords
+    - [ ] Restrict MongoDB network access
+    - [ ] Regular backups
+  </Step>
+
+  <Step title="Application Security">
+    - [ ] Keep dependencies updated (`npm audit`)
+    - [ ] Use rate limiting (already configured)
+    - [ ] Validate all inputs (Zod validators)
+    - [ ] Enable CORS only for trusted origins
+  </Step>
+
+  <Step title="Network Security">
+    - [ ] Use firewall rules
+    - [ ] Restrict API access to known IPs if possible
+    - [ ] Monitor for suspicious activity
+  </Step>
+</Steps>
+
+## Performance Optimization
+
+### Compression
+
+Response compression is enabled by default:
+```javascript app.js
+app.use(compression());
+```
+
+### Database Connection Pooling
+
+Configured in `src/config/database.js`:
+```javascript
+maxPoolSize: 10,  // Max 10 concurrent connections
+serverSelectionTimeoutMS: 5000,
+socketTimeoutMS: 45000
+```
+
+### Cluster Mode
+
+Run multiple instances with PM2:
+```javascript
+instances: 'max',  // One instance per CPU core
+exec_mode: 'cluster'
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container Won't Start">
+    Check logs:
+    ```bash
+    docker logs cuido-backend
+    ```
+
+    Common issues:
+    - Missing environment variables
+    - Invalid `ANTHROPIC_API_KEY` format
+    - MongoDB connection failure
+    - Port already in use
+  </Accordion>
+
+  <Accordion title="High Memory Usage">
+    Monitor with:
+    ```bash
+    docker stats cuido-backend
+    ```
+
+    Solutions:
+    - Reduce `maxPoolSize` in database config
+    - Check for memory leaks
+    - Restart container: `docker restart cuido-backend`
+  </Accordion>
+
+  <Accordion title="Database Connection Errors">
+    Verify:
+    - MongoDB is running: `docker ps | grep mongo`
+    - Connection string is correct
+    - Network connectivity between containers
+    - Authentication credentials
+  </Accordion>
+
+  <Accordion title="Rate Limit Issues">
+    Adjust in `.env`:
+    ```env
+    RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
+    RATE_LIMIT_MAX_REQUESTS=100  # Increase if needed
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Deployment Platforms
+
+### AWS (ECS/Fargate)
+
+1. Push image to ECR
+2. Create ECS task definition
+3. Configure service with load balancer
+4. Set environment variables in task definition
+
+### Google Cloud (Cloud Run)
+
+```bash
+# Build and push
+gcloud builds submit --tag gcr.io/PROJECT_ID/cuido-backend
+
+# Deploy
+gcloud run deploy cuido-backend \
+  --image gcr.io/PROJECT_ID/cuido-backend \
+  --platform managed \
+  --allow-unauthenticated
+```
+
+### Heroku
+
+```bash
+heroku create cuido-backend
+heroku addons:create mongolab
+heroku config:set ANTHROPIC_API_KEY=sk-ant-...
+git push heroku main
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Monitoring Setup" icon="chart-mixed">
+    Integrate with DataDog, New Relic, or Prometheus
+  </Card>
+  <Card title="CI/CD Pipeline" icon="gears">
+    Automate deployment with GitHub Actions
+  </Card>
+  <Card title="Backup Strategy" icon="database">
+    Implement automated database backups
+  </Card>
+  <Card title="Load Testing" icon="gauge-high">
+    Test with k6 or Artillery
+  </Card>
+</CardGroup>

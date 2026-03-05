@@ -1,0 +1,159 @@
+---
+title: 'Employees API Overview'
+description: 'Manage healthcare employee records, wellness metrics, and gamification data'
+---
+
+## Introduction
+
+The Employees API allows you to manage healthcare workers in your organization. Each employee record includes personal information, job details, wellness metrics for burnout prevention, and gamification features to encourage engagement.
+
+## Employee Schema
+
+The Employee model contains the following main sections:
+
+<Expandable title="Employee Object Structure">
+  <ResponseField name="_id" type="string">
+    Unique MongoDB identifier for the employee
+  </ResponseField>
+  
+  <ResponseField name="personalInfo" type="object">
+    Personal information about the employee
+    <Expandable title="personalInfo fields">
+      <ResponseField name="name" type="string" required>
+        Full name of the employee (max 100 characters)
+      </ResponseField>
+      <ResponseField name="email" type="string" required>
+        Email address (unique, lowercase)
+      </ResponseField>
+      <ResponseField name="identification" type="string" required>
+        National ID or employee identification number (unique)
+      </ResponseField>
+      <ResponseField name="phoneNumber" type="string">
+        Contact phone number
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <ResponseField name="jobInfo" type="object">
+    Employment and role information
+    <Expandable title="jobInfo fields">
+      <ResponseField name="position" type="string" required>
+        Employee position. One of: `medico`, `enfermero`, `auxiliar_enfermeria`, `administrativo`, `otro`
+      </ResponseField>
+      <ResponseField name="department" type="string" required>
+        Department assignment. One of: `urgencias`, `hospitalizacion`, `consulta_externa`, `administracion`, `otro`
+      </ResponseField>
+      <ResponseField name="startDate" type="date" required>
+        Employment start date (ISO 8601 format)
+      </ResponseField>
+      <ResponseField name="shift" type="string">
+        Work shift. One of: `mañana`, `tarde`, `noche`, `rotativo` (default: `mañana`)
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <ResponseField name="hospitalId" type="string" required>
+    Identifier of the hospital this employee belongs to
+  </ResponseField>
+
+  <ResponseField name="wellnessMetrics" type="object">
+    Metrics for monitoring employee wellness and burnout risk
+    <Expandable title="wellnessMetrics fields">
+      <ResponseField name="currentMoodScore" type="number">
+        Current mood rating (default: 3)
+      </ResponseField>
+      <ResponseField name="averageWorkload" type="number">
+        Average workload score (default: 3)
+      </ResponseField>
+      <ResponseField name="teamSupportScore" type="number">
+        Team support perception score (default: 3)
+      </ResponseField>
+      <ResponseField name="satisfactionScore" type="number">
+        Job satisfaction score (default: 5)
+      </ResponseField>
+      <ResponseField name="riskLevel" type="string">
+        Burnout risk level. One of: `bajo`, `medio`, `alto` (default: `bajo`)
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <ResponseField name="gamification" type="object">
+    Gamification data to encourage platform engagement
+    <Expandable title="gamification fields">
+      <ResponseField name="totalPoints" type="number">
+        Total points earned (default: 0)
+      </ResponseField>
+      <ResponseField name="currentStreak" type="number">
+        Current consecutive days streak (default: 0)
+      </ResponseField>
+      <ResponseField name="maxStreak" type="number">
+        Maximum streak achieved (default: 0)
+      </ResponseField>
+      <ResponseField name="level" type="number">
+        Current level based on points (default: 1)
+      </ResponseField>
+      <ResponseField name="badges" type="array">
+        Array of earned badges
+        <Expandable title="badge object">
+          <ResponseField name="name" type="string">
+            Badge name
+          </ResponseField>
+          <ResponseField name="earnedAt" type="date">
+            Date when badge was earned
+          </ResponseField>
+          <ResponseField name="description" type="string">
+            Badge description
+          </ResponseField>
+        </Expandable>
+      </ResponseField>
+    </Expandable>
+  </ResponseField>
+
+  <ResponseField name="isActive" type="boolean">
+    Whether the employee is currently active (default: true)
+  </ResponseField>
+
+  <ResponseField name="createdAt" type="date">
+    Timestamp when the employee was created
+  </ResponseField>
+
+  <ResponseField name="updatedAt" type="date">
+    Timestamp when the employee was last updated
+  </ResponseField>
+</Expandable>
+
+## Available Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Create Employee" icon="user-plus" href="/api/employees/create">
+    Create a new employee record
+  </Card>
+  
+  <Card title="Get Employee" icon="user" href="/api/employees/get">
+    Retrieve employee details by ID
+  </Card>
+  
+  <Card title="Update Employee" icon="pen-to-square" href="/api/employees/update">
+    Update employee information
+  </Card>
+  
+  <Card title="List Employees" icon="users" href="/api/employees/overview">
+    Get paginated list of employees
+  </Card>
+</CardGroup>
+
+## Authentication
+
+All employee endpoints require authentication. Include your access token in the Authorization header:
+
+```bash
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+## Authorization
+
+Some endpoints require admin privileges:
+- **Create Employee**: Admin only
+- **Update Employee**: Admin only
+- **Get Employee**: All authenticated users
+- **List Employees**: All authenticated users

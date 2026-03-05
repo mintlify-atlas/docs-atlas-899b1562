@@ -1,0 +1,623 @@
+---
+title: 'Gamification System'
+description: 'Points, badges, levels, and streaks that drive employee engagement'
+---
+
+## Overview
+
+CUIDO's gamification system encourages continuous participation through a comprehensive rewards structure embedded in the Employee model. The system includes points, levels, badges, and streaks to motivate healthcare professionals.
+
+## Gamification Data Structure
+
+The gamification system is part of the Employee model:
+
+```javascript
+// src/models/Employee.js
+gamification: {
+  totalPoints: { type: Number, default: 0 },
+  currentStreak: { type: Number, default: 0 },
+  maxStreak: { type: Number, default: 0 },
+  level: { type: Number, default: 1 },
+  badges: [{
+    name: String,
+    earnedAt: Date,
+    description: String
+  }]
+}
+```
+
+## Points System
+
+<CardGroup cols={2}>
+  <Card title="Survey Completion" icon="clipboard-check">
+    **+5 points**
+    
+    Completing daily wellness surveys
+  </Card>
+  
+  <Card title="Course Completion" icon="graduation-cap">
+    **+20 points**
+    
+    Finishing a microlearning course
+  </Card>
+  
+  <Card title="Badge Earned" icon="medal">
+    **+10 bonus points**
+    
+    Unlocking new achievements
+  </Card>
+  
+  <Card title="Level Up" icon="arrow-up">
+    **+25 bonus points**
+    
+    Advancing to next level
+  </Card>
+</CardGroup>
+
+### Earning Points
+
+Points are automatically awarded through the diagnostic service:
+
+```javascript
+// src/services/diagnosticService.js
+async updateEmployeeMetrics(employee, responses, riskAnalysis) {
+  // Update wellness metrics
+  employee.wellnessMetrics = {
+    currentMoodScore: this.moodToScore(responses.moodToday) * 5,
+    averageWorkload: responses.workloadLevel,
+    teamSupportScore: responses.teamSupport,
+    satisfactionScore: responses.jobSatisfaction,
+    riskLevel: riskAnalysis.riskLevel
+  };
+
+  // Award points for participation
+  employee.gamification.totalPoints += 5;
+  
+  // Update streak
+  employee.updateStreak();
+  
+  // Recalculate level
+  employee.gamification.level = employee.calculateLevel();
+  
+  // Check for badge eligibility
+  await this.checkAndAwardBadges(employee);
+  
+  await employee.save();
+}
+```
+
+## Levels System
+
+Levels are calculated based on total points accumulated:
+
+### Level Calculation Method
+
+```javascript
+// Employee model method
+employeeSchema.methods.calculateLevel = function() {
+  return Math.floor(this.gamification.totalPoints / 100) + 1;
+};
+```
+
+### Level Progression Table
+
+<Accordion title="Level Requirements">
+  | Level | Points Required | Typical Timeline |
+  |-------|----------------|------------------|
+  | 1 | 0-99 | Starting level |
+  | 2 | 100-199 | ~3 weeks of daily surveys |
+  | 3 | 200-299 | ~6 weeks + 1-2 courses |
+  | 4 | 300-399 | ~2-3 months active participation |
+  | 5 | 400-499 | ~3-4 months + multiple courses |
+  | 10+ | 900+ | 6+ months of consistent engagement |
+</Accordion>
+
+<Info>
+  **Formula:** Level = ⌊Total Points / 100⌋ + 1
+  
+  Every 100 points = 1 level
+</Info>
+
+## Streaks System
+
+Streaks track consecutive days of survey participation:
+
+### Streak Update Method
+
+```javascript
+// Employee model method
+employeeSchema.methods.updateStreak = function() {
+  this.gamification.currentStreak += 1;
+  
+  if (this.gamification.currentStreak > this.gamification.maxStreak) {
+    this.gamification.maxStreak = this.gamification.currentStreak;
+  }
+};
+```
+
+### Streak Milestones
+
+<Tabs>
+  <Tab title="7-Day Streak">
+    **Participación Semanal Badge**
+    
+    ```javascript
+    if (employee.gamification.currentStreak >= 7) {
+      badges.push({
+        name: 'Participación Semanal',
+        description: '7 días consecutivos respondiendo encuestas',
+        earnedAt: new Date()
+      });
+    }
+    ```
+    
+    Reward: Badge + Recognition
+  </Tab>
+  
+  <Tab title="10-Day Streak">
+    **Next Milestone**
+    
+    Appears in upcoming milestones:
+    ```javascript
+    {
+      name: 'Racha de 10 días',
+      progress: (currentStreak / 10) * 100,
+      reward: '20 puntos bonus'
+    }
+    ```
+  </Tab>
+  
+  <Tab title="30-Day Streak">
+    **Monthly Champion**
+    
+    Maximum streak milestone:
+    ```javascript
+    {
+      name: 'Racha de 30 días',
+      progress: (currentStreak / 30) * 100,
+      reward: '60 puntos bonus'
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Streaks reset if a day is missed. The `maxStreak` field preserves the longest streak achieved.
+</Note>
+
+## Badges System
+
+Badges are achievements unlocked through specific actions or milestones:
+
+### Badge Award Logic
+
+```javascript
+// src/services/diagnosticService.js
+async checkAndAwardBadges(employee) {
+  const badges = [];
+
+  // Badge: Weekly Participation
+  if (employee.gamification.currentStreak >= 7) {
+    badges.push({
+      name: 'Participación Semanal',
+      description: '7 días consecutivos respondiendo encuestas',
+      earnedAt: new Date()
+    });
+  }
+
+  // Badge: Level Milestone
+  if (employee.gamification.level === 5) {
+    badges.push({
+      name: 'Colaborador Comprometido',
+      description: 'Alcanzó el nivel 5',
+      earnedAt: new Date()
+    });
+  }
+
+  // Badge: Positive Wellbeing
+  if (employee.wellnessMetrics.currentMoodScore >= 4.5) {
+    badges.push({
+      name: 'Ánimo Positivo',
+      description: 'Mantiene un excelente estado de ánimo',
+      earnedAt: new Date()
+    });
+  }
+
+  // Add only new badges (prevent duplicates)
+  badges.forEach(badge => {
+    const exists = employee.gamification.badges.some(b => b.name === badge.name);
+    if (!exists) {
+      employee.gamification.badges.push(badge);
+      employee.gamification.totalPoints += 10; // Bonus points
+    }
+  });
+}
+```
+
+### Available Badges
+
+<CardGroup cols={3}>
+  <Card title="Participación Semanal" icon="calendar-check">
+    7 consecutive daily surveys
+    
+    **Bonus:** +10 points
+  </Card>
+  
+  <Card title="Colaborador Comprometido" icon="handshake">
+    Reach Level 5
+    
+    **Bonus:** +10 points
+  </Card>
+  
+  <Card title="Ánimo Positivo" icon="smile">
+    Maintain mood score ≥ 4.5/5
+    
+    **Bonus:** +10 points
+  </Card>
+  
+  <Card title="Participativo" icon="comments">
+    Complete surveys regularly
+    
+    **Type:** Recognition badge
+  </Card>
+  
+  <Card title="Aprendiz" icon="book">
+    Complete learning courses
+    
+    **Bonus:** +10 points
+  </Card>
+  
+  <Card title="Estrella" icon="star">
+    Employee of the Month
+    
+    **Bonus:** +100 points
+  </Card>
+</CardGroup>
+
+### Badge Schema
+
+Each badge has:
+- **name**: Unique identifier
+- **description**: What was accomplished
+- **earnedAt**: Timestamp of achievement
+
+## Gamification Statistics
+
+Get comprehensive stats for an employee:
+
+```javascript
+// src/services/diagnosticService.js
+async getGamificationStats(employeeId) {
+  const employee = await Employee.findById(employeeId);
+  
+  // Get hospital ranking
+  const hospitalEmployees = await Employee.find({
+    hospitalId: employee.hospitalId,
+    isActive: true
+  }).sort({ 'gamification.totalPoints': -1 });
+  
+  const rank = hospitalEmployees.findIndex(emp => 
+    emp._id.toString() === employeeId
+  ) + 1;
+  
+  // Calculate progress to next level
+  const currentLevelPoints = (employee.gamification.level - 1) * 100;
+  const nextLevelPoints = employee.gamification.level * 100;
+  const progressToNextLevel = 
+    ((employee.gamification.totalPoints - currentLevelPoints) / 100) * 100;
+  
+  return {
+    employee: {
+      name: employee.personalInfo.name,
+      department: employee.jobInfo.department,
+      position: employee.jobInfo.position
+    },
+    gamification: {
+      totalPoints: employee.gamification.totalPoints,
+      currentLevel: employee.gamification.level,
+      currentStreak: employee.gamification.currentStreak,
+      maxStreak: employee.gamification.maxStreak,
+      badges: employee.gamification.badges.length,
+      badgesList: employee.gamification.badges
+    },
+    ranking: {
+      position: rank,
+      totalEmployees: hospitalEmployees.length,
+      percentile: Math.round((1 - (rank / hospitalEmployees.length)) * 100)
+    },
+    progress: {
+      currentLevelPoints,
+      nextLevelPoints,
+      progressPercentage: Math.round(progressToNextLevel),
+      pointsToNextLevel: nextLevelPoints - employee.gamification.totalPoints
+    },
+    achievements: {
+      recentBadges: employee.gamification.badges
+        .sort((a, b) => new Date(b.earnedAt) - new Date(a.earnedAt))
+        .slice(0, 3),
+      upcomingMilestones: this.getUpcomingMilestones(employee)
+    }
+  };
+}
+```
+
+### Response Example
+
+```json
+{
+  "employee": {
+    "name": "Dr. María González",
+    "department": "urgencias",
+    "position": "medico"
+  },
+  "gamification": {
+    "totalPoints": 275,
+    "currentLevel": 3,
+    "currentStreak": 12,
+    "maxStreak": 15,
+    "badges": 4,
+    "badgesList": [
+      {
+        "name": "Participación Semanal",
+        "description": "7 días consecutivos",
+        "earnedAt": "2024-03-01T10:00:00Z"
+      }
+    ]
+  },
+  "ranking": {
+    "position": 5,
+    "totalEmployees": 120,
+    "percentile": 96
+  },
+  "progress": {
+    "currentLevelPoints": 200,
+    "nextLevelPoints": 300,
+    "progressPercentage": 75,
+    "pointsToNextLevel": 25
+  }
+}
+```
+
+## Upcoming Milestones
+
+Show employees their next achievements:
+
+```javascript
+getUpcomingMilestones(employee) {
+  const milestones = [];
+  
+  // Next streak milestone
+  const nextStreakMilestone = [10, 15, 30].find(ms => 
+    ms > employee.gamification.currentStreak
+  );
+  
+  if (nextStreakMilestone) {
+    milestones.push({
+      name: `Racha de ${nextStreakMilestone} días`,
+      progress: Math.round(
+        (employee.gamification.currentStreak / nextStreakMilestone) * 100
+      ),
+      reward: `${nextStreakMilestone * 2} puntos bonus`
+    });
+  }
+  
+  // Next level
+  if (employee.gamification.level < 10) {
+    milestones.push({
+      name: `Nivel ${employee.gamification.level + 1}`,
+      progress: Math.round(
+        ((employee.gamification.totalPoints % 100) / 100) * 100
+      ),
+      reward: 'Nueva insignia'
+    });
+  }
+  
+  return milestones.slice(0, 2); // Max 2 upcoming
+}
+```
+
+## Employee Ranking
+
+View top performers by hospital:
+
+```javascript
+// src/controllers/recognitionController.js
+export const getEmployeeRanking = asyncHandler(async (req, res) => {
+  const { hospitalId } = req.params;
+  const { limit = 10 } = req.query;
+
+  const ranking = await Recognition.aggregate([
+    {
+      $lookup: {
+        from: 'employees',
+        localField: 'employeeId',
+        foreignField: '_id',
+        as: 'employee'
+      }
+    },
+    {
+      $match: {
+        'employee.hospitalId': hospitalId
+      }
+    },
+    {
+      $group: {
+        _id: '$employeeId',
+        totalPoints: { $sum: '$pointsAwarded' },
+        totalRecognitions: { $sum: 1 },
+        employee: { $first: '$employee' }
+      }
+    },
+    {
+      $sort: { totalPoints: -1 }
+    },
+    {
+      $limit: parseInt(limit)
+    }
+  ]);
+
+  sendSuccess(res, 'Ranking obtenido', { ranking });
+});
+```
+
+## Gamified Survey Experience
+
+Advanced gamification for interactive surveys:
+
+```javascript
+async processGamifiedSurvey(employeeId, surveyType, interactions) {
+  let totalPoints = 0;
+  const newBadges = [];
+  
+  // Award points per interaction type
+  for (const interaction of interactions) {
+    switch (interaction.type) {
+      case 'emoji_slider':
+        totalPoints += 3;
+        break;
+      case 'card_swipe':
+        totalPoints += 4;
+        break;
+      case 'quick_tap':
+        totalPoints += 2;
+        break;
+      case 'voice_note':
+        totalPoints += 8;
+        break;
+    }
+  }
+  
+  // Bonus for completion
+  if (interactions.length >= 5) {
+    totalPoints += 10;
+    newBadges.push({
+      name: 'Participación Completa',
+      description: 'Completó toda la encuesta interactiva',
+      earnedAt: new Date()
+    });
+  }
+  
+  // Bonus for speed (< 3 minutes)
+  if (interactions.completionTime < 180) {
+    totalPoints += 5;
+    newBadges.push({
+      name: 'Respuesta Rápida',
+      description: 'Completó en menos de 3 minutos',
+      earnedAt: new Date()
+    });
+  }
+  
+  // Update employee
+  const oldLevel = employee.gamification.level;
+  employee.gamification.totalPoints += totalPoints;
+  employee.gamification.level = employee.calculateLevel();
+  
+  // Check for level up
+  const levelUp = employee.gamification.level > oldLevel;
+  if (levelUp) {
+    totalPoints += 25;
+    employee.gamification.totalPoints += 25;
+  }
+  
+  return {
+    pointsEarned: totalPoints,
+    newBadges,
+    levelUp,
+    currentLevel: employee.gamification.level,
+    currentStreak: employee.gamification.currentStreak
+  };
+}
+```
+
+## Integration with Recognition Module
+
+The recognition service awards points for various achievements:
+
+```javascript
+// src/services/recognitionService.js
+getRecognitionConfig(type) {
+  const configs = {
+    'encuesta_completada': {
+      rewardType: 'puntos',
+      title: '¡Encuesta Completada!',
+      description: 'Gracias por compartir tu feedback',
+      points: 5,
+      badge: 'participativo'
+    },
+    'curso_terminado': {
+      rewardType: 'diploma',
+      title: '¡Curso Completado!',
+      description: 'Has terminado exitosamente',
+      points: 20,
+      badge: 'aprendiz'
+    },
+    'empleado_mes': {
+      rewardType: 'mencion',
+      title: '¡Empleado del Mes!',
+      description: 'Reconocimiento por excelencia',
+      points: 100,
+      badge: 'estrella'
+    }
+  };
+  
+  return configs[type];
+}
+```
+
+## Gamification Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Immediate Feedback" icon="bolt">
+    Points and badges are awarded instantly upon completing actions
+  </Card>
+  
+  <Card title="Progressive Rewards" icon="chart-line">
+    Larger rewards for more significant achievements
+  </Card>
+  
+  <Card title="Visible Progress" icon="eye">
+    Always show progress to next milestone
+  </Card>
+  
+  <Card title="Social Recognition" icon="users">
+    Public recognition wall for achievements
+  </Card>
+</CardGroup>
+
+## API Endpoints
+
+<Accordion title="GET /api/recognition/stats/:employeeId">
+  Get complete gamification statistics for an employee.
+  
+  **Response includes:**
+  - Total points and current level
+  - Current and max streaks
+  - All earned badges
+  - Hospital ranking position
+  - Progress to next level
+  - Upcoming milestones
+</Accordion>
+
+<Accordion title="GET /api/recognition/ranking/:hospitalId">
+  Get top performers leaderboard.
+  
+  **Query Parameters:**
+  - `limit`: Number of top employees (default: 10)
+  
+  **Returns:**
+  - Ranked list by total points
+  - Total recognitions per employee
+  - Employee details
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Recognition Module" icon="trophy" href="/modules/recognition">
+    Full documentation on the recognition system
+  </Card>
+  
+  <Card title="Diagnostic Module" icon="stethoscope" href="/modules/diagnostic">
+    How surveys integrate with gamification
+  </Card>
+</CardGroup>

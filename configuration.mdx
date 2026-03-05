@@ -1,0 +1,651 @@
+---
+title: Configuration
+description: Complete guide to all environment variables and configuration options for CUIDO Backend
+---
+
+# Configuration Guide
+
+CUIDO Backend uses environment variables for configuration. This guide documents all available options with detailed explanations and examples.
+
+## Environment File Setup
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+<Warning>
+  Never commit your `.env` file to version control. It contains sensitive credentials. The `.gitignore` file should already exclude it.
+</Warning>
+
+## Core Configuration
+
+### Server Settings
+
+<ParamField path="PORT" type="number" default="3000">
+  The port number on which the server will listen for incoming requests.
+
+  ```env
+  PORT=3000
+  ```
+
+  **Common ports:**
+  - `3000` - Default development
+  - `8080` - Alternative development
+  - `80` - HTTP production (requires privileges)
+  - `443` - HTTPS production (requires privileges)
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  The application environment mode. Affects logging, error handling, and security settings.
+
+  ```env
+  NODE_ENV=development
+  ```
+
+  **Valid values:**
+  - `development` - Verbose logging, detailed errors, hot reload
+  - `production` - Minimal logging, sanitized errors, optimizations
+  - `test` - Test mode, in-memory database, mocked services
+</ParamField>
+
+## Database Configuration
+
+### MongoDB Connection
+
+<ParamField path="MONGODB_URI" type="string" required>
+  MongoDB connection string. Supports both local and cloud (Atlas) connections.
+
+  ```env
+  # Local MongoDB
+  MONGODB_URI=mongodb://localhost:27017/claude-prompt-db
+  
+  # MongoDB Atlas
+  MONGODB_URI=mongodb+srv://username:password@cluster.xxxxx.mongodb.net/claude-prompt-db?retryWrites=true&w=majority
+  
+  # MongoDB with authentication
+  MONGODB_URI=mongodb://admin:password@localhost:27017/claude-prompt-db?authSource=admin
+  ```
+
+  **Connection string components:**
+  - `mongodb://` or `mongodb+srv://` - Protocol
+  - `username:password@` - Credentials (optional for local)
+  - `localhost:27017` - Host and port
+  - `/claude-prompt-db` - Database name
+  - `?options` - Connection options
+</ParamField>
+
+<Note>
+  The database connection uses these Mongoose options:
+  - `maxPoolSize: 10` - Maximum 10 concurrent connections
+  - `serverSelectionTimeoutMS: 5000` - 5 second timeout
+  - `socketTimeoutMS: 45000` - 45 second socket timeout
+</Note>
+
+## Authentication & Security
+
+### JWT Configuration
+
+<ParamField path="JWT_SECRET" type="string" required>
+  Secret key for signing and verifying JSON Web Tokens. **Must be kept secure.**
+
+  ```env
+  JWT_SECRET=your_jwt_secret_super_secure_256_bits_minimum
+  ```
+
+  **Best practices:**
+  - Minimum 32 characters
+  - Mix of letters, numbers, and symbols
+  - Generate with: `openssl rand -base64 32`
+  - Different for each environment
+  - Never reuse across projects
+</ParamField>
+
+<ParamField path="JWT_EXPIRES_IN" type="string" default="7d">
+  Token expiration time. Uses [vercel/ms](https://github.com/vercel/ms) format.
+
+  ```env
+  JWT_EXPIRES_IN=7d
+  ```
+
+  **Valid formats:**
+  - `60` - 60 seconds
+  - `5m` - 5 minutes
+  - `2h` - 2 hours
+  - `7d` - 7 days
+  - `30d` - 30 days
+</ParamField>
+
+**JWT Implementation Details:**
+
+The authentication system in `src/services/authService.js:9` uses:
+
+```javascript
+jwt.sign(
+  payload,
+  process.env.JWT_SECRET,
+  { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+)
+```
+
+Tokens are verified in `src/services/authService.js:20`:
+
+```javascript
+jwt.verify(token, process.env.JWT_SECRET)
+```
+
+## Anthropic Claude AI
+
+### API Configuration
+
+<ParamField path="ANTHROPIC_API_KEY" type="string" required>
+  Your Anthropic API key for Claude AI integration. Get it from [console.anthropic.com](https://console.anthropic.com/).
+
+  ```env
+  ANTHROPIC_API_KEY=sk-ant-api03-your-actual-api-key-here
+  ```
+
+  **Key format validation:**
+  - Must start with `sk-ant-`
+  - Validated on server startup (`server.js:31-38`)
+  - Connection tested before server starts
+</ParamField>
+
+<ParamField path="CLAUDE_MODEL" type="string" default="claude-3-sonnet-20240229">
+  The Claude model to use for completions. Different models offer different performance/cost tradeoffs.
+
+  ```env
+  CLAUDE_MODEL=claude-3-sonnet-20240229
+  ```
+
+  **Available models:**
+
+  | Model | Best For | Speed | Cost |
+  |-------|----------|-------|------|
+  | `claude-3-opus-20240229` | Complex tasks, highest accuracy | Slower | Highest |
+  | `claude-3-sonnet-20240229` | **Balanced** (recommended) | Medium | Medium |
+  | `claude-3-haiku-20240307` | Simple tasks, high volume | Fastest | Lowest |
+</ParamField>
+
+**API Key Validation:**
+
+The server validates the Anthropic configuration on startup (`server.js:31-46`):
+
+```javascript
+if (!process.env.ANTHROPIC_API_KEY) {
+  logger.error('ANTHROPIC_API_KEY no está configurada en el archivo .env');
+  process.exit(1);
+}
+
+if (!process.env.ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+  logger.error('ANTHROPIC_API_KEY no tiene el formato correcto');
+  process.exit(1);
+}
+```
+
+<Tip>
+  The server tests Claude API connectivity before starting. If validation fails, check your API key and network connection.
+</Tip>
+
+## CORS & Security
+
+### Cross-Origin Resource Sharing
+
+<ParamField path="ALLOWED_ORIGINS" type="string" default="http://localhost:3000,http://localhost:5173,http://localhost:8080">
+  Comma-separated list of allowed origins for CORS.
+
+  ```env
+  ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://app.example.com
+  ```
+
+  **Implementation** (`src/app.js:51`):
+
+  ```javascript
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080'
+  ];
+  ```
+</ParamField>
+
+<ParamField path="SOCKET_IO_CORS_ORIGINS" type="string" default="http://localhost:3000,http://localhost:5173,http://localhost:8080">
+  Comma-separated list of allowed origins for Socket.IO connections.
+
+  ```env
+  SOCKET_IO_CORS_ORIGINS=http://localhost:3000,https://app.example.com
+  ```
+
+  **Implementation** (`server.js:65`):
+
+  ```javascript
+  const io = new Server(httpServer, {
+    cors: {
+      origin: process.env.SOCKET_IO_CORS_ORIGINS?.split(',') || [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://localhost:8080'
+      ]
+    }
+  });
+  ```
+</ParamField>
+
+## Rate Limiting
+
+### Global Rate Limits
+
+<ParamField path="RATE_LIMIT_WINDOW_MS" type="number" default="900000">
+  Time window for rate limiting in milliseconds.
+
+  ```env
+  RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
+  ```
+
+  **Common values:**
+  - `60000` - 1 minute
+  - `300000` - 5 minutes
+  - `900000` - 15 minutes (default)
+  - `3600000` - 1 hour
+</ParamField>
+
+<ParamField path="RATE_LIMIT_MAX_REQUESTS" type="number" default="100">
+  Maximum number of requests allowed per IP in the time window.
+
+  ```env
+  RATE_LIMIT_MAX_REQUESTS=100
+  ```
+
+  **Implementation** (`src/app.js:72-74`):
+
+  ```javascript
+  const limiter = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+    // ... handlers
+  });
+  ```
+</ParamField>
+
+### Endpoint-Specific Limits
+
+**Authentication endpoints** (`src/routes/authRoutes.js:12-14`):
+- Window: 15 minutes
+- Max requests: 5 per IP
+- Applies to: `/api/auth/login`, `/api/auth/register`
+
+**Chat endpoints** (`src/routes/chatRoutes.js:17-19`):
+- Window: 1 minute
+- Max requests: 10 per user
+- Applies to: `/api/chat/complete`
+
+<Warning>
+  Rate limits are enforced per IP address for public endpoints and per user for authenticated endpoints. Exceeding limits returns HTTP 429.
+</Warning>
+
+## Logging Configuration
+
+### Winston Logger Settings
+
+<ParamField path="LOG_LEVEL" type="string" default="info">
+  Minimum log level to record.
+
+  ```env
+  LOG_LEVEL=info
+  ```
+
+  **Log levels** (highest to lowest priority):
+  - `error` - Only errors
+  - `warn` - Errors and warnings
+  - `info` - Standard operational info (recommended)
+  - `http` - HTTP requests
+  - `verbose` - Detailed info
+  - `debug` - Debug information
+  - `silly` - Everything
+</ParamField>
+
+<ParamField path="LOG_FILE_PATH" type="string" default="./logs">
+  Directory path for log files. Created automatically if it doesn't exist.
+
+  ```env
+  LOG_FILE_PATH=./logs
+  ```
+
+  **Log rotation** (`src/utils/logger.js`):
+  - Daily rotation via `winston-daily-rotate-file`
+  - Pattern: `application-%DATE%.log`
+  - Error logs: `error-%DATE%.log`
+  - Max file size: 20MB
+  - Max files: 14 days
+</ParamField>
+
+**Logging behavior by environment:**
+
+```javascript
+// Development (src/app.js:119)
+const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+```
+
+- **Development**: Colorized console output, verbose errors
+- **Production**: JSON format, sanitized error messages
+
+## Scheduled Tasks
+
+### Cron Jobs
+
+<ParamField path="ENABLE_CRON_JOBS" type="boolean" default="false">
+  Enable or disable scheduled background tasks.
+
+  ```env
+  ENABLE_CRON_JOBS=true
+  ```
+
+  **Implementation** (`server.js:106-108`):
+
+  ```javascript
+  if (process.env.ENABLE_CRON_JOBS === 'true') {
+    scheduledTasks.init();
+  }
+  ```
+
+  **Valid values:**
+  - `true` - Enable scheduled tasks
+  - `false` - Disable scheduled tasks
+</ParamField>
+
+<Note>
+  Scheduled tasks use `node-cron` for:
+  - Periodic data cleanup
+  - Analytics aggregation
+  - Notification processing
+  - Health checks
+</Note>
+
+## Complete .env Template
+
+Here's a complete template with all available options:
+
+```env
+# ===================================
+# CUIDO Backend Configuration
+# ===================================
+
+# -----------------------------------
+# Server Configuration
+# -----------------------------------
+PORT=3000
+NODE_ENV=development
+
+# -----------------------------------
+# Database Configuration
+# -----------------------------------
+# Local MongoDB
+MONGODB_URI=mongodb://localhost:27017/claude-prompt-db
+
+# MongoDB Atlas (Cloud)
+# MONGODB_URI=mongodb+srv://username:password@cluster.xxxxx.mongodb.net/claude-prompt-db?retryWrites=true&w=majority
+
+# -----------------------------------
+# JWT Authentication
+# -----------------------------------
+# Generate a secure secret: openssl rand -base64 32
+JWT_SECRET=your_jwt_secret_super_secure_256_bits_minimum_change_this
+JWT_EXPIRES_IN=7d
+
+# -----------------------------------
+# Anthropic Claude AI
+# -----------------------------------
+# Get your API key: https://console.anthropic.com/
+ANTHROPIC_API_KEY=sk-ant-api03-your-actual-api-key-here
+CLAUDE_MODEL=claude-3-sonnet-20240229
+
+# Available models:
+# - claude-3-opus-20240229    (highest capability, highest cost)
+# - claude-3-sonnet-20240229  (balanced, recommended)
+# - claude-3-haiku-20240307   (fastest, lowest cost)
+
+# -----------------------------------
+# CORS Configuration
+# -----------------------------------
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+SOCKET_IO_CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+
+# Production example:
+# ALLOWED_ORIGINS=https://app.example.com,https://www.example.com
+# SOCKET_IO_CORS_ORIGINS=https://app.example.com
+
+# -----------------------------------
+# Rate Limiting
+# -----------------------------------
+RATE_LIMIT_WINDOW_MS=900000        # 15 minutes in milliseconds
+RATE_LIMIT_MAX_REQUESTS=100        # Max requests per IP per window
+
+# Recommended values:
+# Development: RATE_LIMIT_MAX_REQUESTS=1000
+# Production: RATE_LIMIT_MAX_REQUESTS=100
+
+# -----------------------------------
+# Logging Configuration
+# -----------------------------------
+LOG_LEVEL=info                     # error | warn | info | debug
+LOG_FILE_PATH=./logs               # Log file directory
+
+# -----------------------------------
+# Scheduled Tasks
+# -----------------------------------
+ENABLE_CRON_JOBS=false             # true | false
+
+# -----------------------------------
+# Optional: Performance Tuning
+# -----------------------------------
+# Body parser limits (configured in src/app.js:99-113)
+# Default: 10mb for JSON and URL-encoded bodies
+
+# MongoDB connection pool (configured in src/config/database.js:8-12)
+# Default: maxPoolSize=10, socketTimeout=45000ms
+```
+
+## Environment-Specific Configurations
+
+### Development
+
+```env
+NODE_ENV=development
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/claude-prompt-db-dev
+LOG_LEVEL=debug
+RATE_LIMIT_MAX_REQUESTS=1000
+ENABLE_CRON_JOBS=false
+```
+
+### Production
+
+```env
+NODE_ENV=production
+PORT=3000
+MONGODB_URI=mongodb+srv://prod_user:secure_pass@prod-cluster.xxxxx.mongodb.net/cuido_prod
+JWT_SECRET=<generated-with-openssl-rand-base64-64>
+JWT_EXPIRES_IN=24h
+ANTHROPIC_API_KEY=sk-ant-api03-production-key
+CLAUDE_MODEL=claude-3-sonnet-20240229
+ALLOWED_ORIGINS=https://cuido.example.com
+SOCKET_IO_CORS_ORIGINS=https://cuido.example.com
+LOG_LEVEL=info
+RATE_LIMIT_MAX_REQUESTS=100
+ENABLE_CRON_JOBS=true
+```
+
+### Testing
+
+```env
+NODE_ENV=test
+PORT=3001
+MONGODB_URI=mongodb://localhost:27017/claude-prompt-db-test
+LOG_LEVEL=error
+RATE_LIMIT_MAX_REQUESTS=10000
+ENABLE_CRON_JOBS=false
+```
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Generate Strong Secrets">
+    Use cryptographically secure random strings:
+
+    ```bash
+    # Generate JWT secret (32 bytes, base64 encoded)
+    openssl rand -base64 32
+    
+    # Generate longer secret (64 bytes)
+    openssl rand -base64 64
+    ```
+  </Step>
+
+  <Step title="Use Different Credentials Per Environment">
+    Never use the same `JWT_SECRET` or `ANTHROPIC_API_KEY` across development, staging, and production.
+  </Step>
+
+  <Step title="Restrict CORS Origins">
+    In production, only allow specific domains:
+
+    ```env
+    # Bad (development only)
+    ALLOWED_ORIGINS=*
+    
+    # Good (production)
+    ALLOWED_ORIGINS=https://app.example.com,https://www.example.com
+    ```
+  </Step>
+
+  <Step title="Protect Your .env File">
+    Ensure `.env` is in `.gitignore`:
+
+    ```bash
+    # Check if .env is ignored
+    git check-ignore .env
+    
+    # Add to .gitignore if not present
+    echo ".env" >> .gitignore
+    ```
+  </Step>
+
+  <Step title="Use Environment-Specific Files">
+    Consider using different env files:
+
+    ```bash
+    .env.development
+    .env.production
+    .env.test
+    ```
+
+    Load with:
+
+    ```bash
+    NODE_ENV=production node -r dotenv/config server.js dotenv_config_path=.env.production
+    ```
+  </Step>
+</Steps>
+
+## Validation on Startup
+
+The server validates critical configuration on startup:
+
+<CodeGroup>
+
+```javascript MongoDB Validation
+// src/config/database.js:4-50
+if (!process.env.MONGODB_URI) {
+  logger.error('MONGODB_URI not configured');
+  process.exit(1);
+}
+```
+
+```javascript API Key Validation
+// server.js:31-38
+if (!process.env.ANTHROPIC_API_KEY) {
+  logger.error('ANTHROPIC_API_KEY not configured');
+  process.exit(1);
+}
+
+if (!process.env.ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+  logger.error('Invalid ANTHROPIC_API_KEY format');
+  process.exit(1);
+}
+```
+
+```javascript Claude Connection Test
+// server.js:52-58
+const claudeConnected = await claudeService.validateConnection();
+if (!claudeConnected) {
+  logger.warn('Could not validate Claude API connection');
+}
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Start using CUIDO Backend
+  </Card>
+  <Card title="Authentication" icon="lock" href="/concepts/authentication">
+    Learn about the auth system
+  </Card>
+  <Card title="Deployment" icon="server" href="/development/deployment">
+    Deploy to production
+  </Card>
+  <Card title="Architecture" icon="chart-line" href="/concepts/architecture">
+    Understand the system architecture
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server exits with 'ANTHROPIC_API_KEY not configured'">
+    Ensure your `.env` file contains:
+    
+    ```env
+    ANTHROPIC_API_KEY=sk-ant-api03-...
+    ```
+    
+    And that the key starts with `sk-ant-`.
+  </Accordion>
+
+  <Accordion title="MongoDB connection fails">
+    Check:
+    1. MongoDB is running: `sudo systemctl status mongod`
+    2. `MONGODB_URI` is correct in `.env`
+    3. Network connectivity if using MongoDB Atlas
+    4. Firewall rules allow connection to port 27017
+  </Accordion>
+
+  <Accordion title="JWT tokens not working">
+    Verify:
+    1. `JWT_SECRET` is set and not empty
+    2. Same secret used for signing and verification
+    3. Token hasn't expired (check `JWT_EXPIRES_IN`)
+  </Accordion>
+
+  <Accordion title="CORS errors in browser">
+    Add your frontend URL to `ALLOWED_ORIGINS`:
+    
+    ```env
+    ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,YOUR_FRONTEND_URL
+    ```
+    
+    Restart the server after changing `.env`.
+  </Accordion>
+
+  <Accordion title="Rate limit blocking legitimate requests">
+    Increase limits for development:
+    
+    ```env
+    RATE_LIMIT_MAX_REQUESTS=1000
+    ```
+    
+    Or disable temporarily by commenting out the rate limiter in `src/app.js:96`.
+  </Accordion>
+</AccordionGroup>

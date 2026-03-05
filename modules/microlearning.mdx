@@ -1,0 +1,632 @@
+---
+title: 'Microlearning Module'
+description: 'Bite-sized courses with multimedia content, quizzes, and automatic certification for continuous professional development'
+---
+
+## Overview
+
+The Microlearning module enables healthcare organizations to deliver short, focused training courses that fit into busy healthcare schedules. With multimodal content, automated quizzes, and instant certification, it's designed for maximum engagement and minimal time commitment.
+
+<Note>
+Courses are designed to be completed in 15-30 minutes, making them ideal for shift breaks or between-patient downtime.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multimodal Content" icon="play-circle">
+    Video, audio podcasts, PDFs, and infographics in a single course
+  </Card>
+  <Card title="Automated Quizzes" icon="clipboard-question">
+    Built-in assessments with automatic scoring and instant feedback
+  </Card>
+  <Card title="Smart Recommendations" icon="lightbulb">
+    AI-powered course suggestions based on role and completed courses
+  </Card>
+  <Card title="Instant Certification" icon="certificate">
+    Automatic certificate generation upon successful completion
+  </Card>
+</CardGroup>
+
+---
+
+## Course Structure
+
+### Course Schema
+
+Each microcourse includes comprehensive metadata and content:
+
+```javascript
+// From models/MicroCourse.js:1-48
+const microCourseSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  
+  area: {
+    type: String,
+    enum: ['enfermeria', 'urgencias', 'maternidad', 'administracion', 'general'],
+    required: true
+  },
+  
+  // Multimodal content
+  content: {
+    videoUrl: String,      // YouTube, Vimeo, or CDN link
+    audioUrl: String,      // Podcast MP3
+    pdfUrl: String,        // Infographic or reading material
+    duration: { type: Number, required: true } // In minutes
+  },
+  
+  // Quiz for assessment
+  quiz: [{
+    question: { type: String, required: true },
+    options: [String],
+    correctAnswer: { type: Number, required: true }, // Index of correct option
+    points: { type: Number, default: 1 }
+  }],
+  
+  // Certification settings
+  certificationType: {
+    type: String,
+    enum: ['participacion', 'aprobacion'],
+    default: 'aprobacion'
+  },
+  passingScore: { type: Number, default: 70 }
+});
+```
+
+### Content Types
+
+<Accordion title="Video Content">
+  - Primary teaching medium
+  - Supports YouTube, Vimeo, or self-hosted
+  - Recommended: 10-20 minutes
+  - Mobile-optimized streaming
+</Accordion>
+
+<Accordion title="Audio Podcasts">
+  - Alternative to video for auditory learners
+  - Ideal for commute or exercise
+  - MP3 format for universal compatibility
+  - Background listening enabled
+</Accordion>
+
+<Accordion title="PDF Infographics">
+  - Quick reference materials
+  - Downloadable for offline access
+  - Visual learning aids
+  - Printable protocols and checklists
+</Accordion>
+
+---
+
+## Enrollment System
+
+### Enroll Employee in Course
+
+<Steps>
+  <Step title="Check Existing Enrollment">
+    Prevent duplicate enrollments:
+    
+    ```javascript
+    // From microLearningService.js:11-35
+    async enrollEmployee(employeeId, courseId) {
+      // Verify not already enrolled
+      const existingEnrollment = await CourseEnrollment.findOne({
+        employeeId,
+        courseId
+      });
+      
+      if (existingEnrollment) {
+        throw new AppError('Ya está inscrito en este curso', 400);
+      }
+      
+      const enrollment = new CourseEnrollment({
+        employeeId,
+        courseId
+      });
+      
+      await enrollment.save();
+      return enrollment;
+    }
+    ```
+  </Step>
+  
+  <Step title="Create Enrollment Record">
+    Track progress with detailed enrollment data:
+    
+    ```javascript
+    const courseEnrollmentSchema = new mongoose.Schema({
+      employeeId: { type: ObjectId, ref: 'Employee', required: true },
+      courseId: { type: ObjectId, ref: 'MicroCourse', required: true },
+      
+      progress: {
+        status: {
+          type: String,
+          enum: ['inscrito', 'en_progreso', 'completado', 'reprobado'],
+          default: 'inscrito'
+        },
+        currentWeek: { type: Number, default: 1 },
+        week1QuizScore: Number,
+        finalQuizScore: Number,
+        totalScore: Number,
+        completedAt: Date,
+        certified: { type: Boolean, default: false },
+        certificateIssuedAt: Date
+      },
+      
+      enrolledAt: { type: Date, default: Date.now }
+    });
+    ```
+  </Step>
+</Steps>
+
+### API Usage
+
+```javascript
+POST /api/microlearning/enroll
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "courseId": "507f1f77bcf86cd799439022"
+}
+
+Response:
+{
+  "status": "success",
+  "message": "Inscripción exitosa",
+  "data": {
+    "enrollment": {
+      "_id": "507f1f77bcf86cd799439033",
+      "employeeId": "507f1f77bcf86cd799439011",
+      "courseId": "507f1f77bcf86cd799439022",
+      "progress": {
+        "status": "inscrito",
+        "currentWeek": 1
+      },
+      "enrolledAt": "2024-01-15T10:00:00Z"
+    }
+  }
+}
+```
+
+---
+
+## Quiz System
+
+### Quiz Structure
+
+Each course can have multiple quizzes:
+
+```javascript
+quiz: [
+  {
+    question: "¿Cuál es el primer paso en la reanimación cardiopulmonar?",
+    options: [
+      "Verificar respuesta del paciente",
+      "Iniciar compresiones torácicas",
+      "Llamar por ayuda",
+      "Verificar pulso"
+    ],
+    correctAnswer: 0, // Index of correct option
+    points: 1
+  },
+  {
+    question: "¿Cuántas compresiones por minuto se recomiendan?",
+    options: ["60-80", "80-100", "100-120", "120-140"],
+    correctAnswer: 2,
+    points: 2 // Worth more points
+  }
+]
+```
+
+### Process Quiz Results
+
+<Steps>
+  <Step title="Submit Answers">
+    Employee submits quiz answers:
+    
+    ```javascript
+    POST /api/microlearning/quiz/submit
+    {
+      "employeeId": "507f1f77bcf86cd799439011",
+      "courseId": "507f1f77bcf86cd799439022",
+      "answers": [0, 2, 1, 3], // Indices of selected options
+      "quizType": "final" // or "week1"
+    }
+    ```
+  </Step>
+  
+  <Step title="Calculate Score">
+    Automatic scoring based on correct answers:
+    
+    ```javascript
+    // From microLearningService.js:90-102
+    calculateQuizScore(questions, answers) {
+      let totalPoints = 0;
+      let earnedPoints = 0;
+      
+      questions.forEach((question, index) => {
+        totalPoints += question.points || 1;
+        if (answers[index] === question.correctAnswer) {
+          earnedPoints += question.points || 1;
+        }
+      });
+      
+      return Math.round((earnedPoints / totalPoints) * 100);
+    }
+    ```
+  </Step>
+  
+  <Step title="Update Progress">
+    Update enrollment with quiz results:
+    
+    ```javascript
+    // From microLearningService.js:40-88
+    async processQuizResult(employeeId, courseId, answers, quizType = 'final') {
+      const course = await MicroCourse.findById(courseId);
+      const enrollment = await CourseEnrollment.findOne({ employeeId, courseId });
+      
+      const score = this.calculateQuizScore(course.quiz, answers);
+      
+      const updateData = {};
+      
+      if (quizType === 'week1') {
+        updateData['progress.week1QuizScore'] = score;
+        updateData['progress.currentWeek'] = 2;
+      } else {
+        updateData['progress.finalQuizScore'] = score;
+        updateData['progress.totalScore'] = (enrollment.progress.week1QuizScore + score) / 2;
+        
+        // Check if passed
+        if (score >= course.passingScore) {
+          updateData['progress.status'] = 'completado';
+          updateData['progress.completedAt'] = new Date();
+          
+          // Generate certificate
+          if (course.certificationType === 'aprobacion') {
+            updateData['progress.certified'] = true;
+            updateData['progress.certificateIssuedAt'] = new Date();
+          }
+        }
+      }
+      
+      await CourseEnrollment.findByIdAndUpdate(enrollment._id, updateData);
+      
+      return {
+        score,
+        passed: score >= course.passingScore,
+        passingScore: course.passingScore
+      };
+    }
+    ```
+  </Step>
+  
+  <Step title="Generate Certificate">
+    Automatic certificate generation for passing scores:
+    
+    ```javascript
+    if (score >= course.passingScore && course.certificationType === 'aprobacion') {
+      updateData['progress.certified'] = true;
+      updateData['progress.certificateIssuedAt'] = new Date();
+      // Certificate URL generation logic here
+    }
+    ```
+  </Step>
+</Steps>
+
+### Quiz Response
+
+```javascript
+{
+  "status": "success",
+  "data": {
+    "result": {
+      "score": 85,
+      "passed": true,
+      "passingScore": 70
+    }
+  }
+}
+```
+
+---
+
+## Recommendation Engine
+
+### Personalized Course Recommendations
+
+The system recommends courses based on employee profile and history:
+
+```javascript
+// From microLearningService.js:104-132
+async recommendCourses(employeeId) {
+  const employee = await Employee.findById(employeeId);
+  
+  // Get completed courses
+  const completedCourses = await CourseEnrollment.find({
+    employeeId,
+    'progress.status': 'completado'
+  }).populate('courseId');
+  
+  // Get available courses for employee's position
+  const availableCourses = await MicroCourse.find({
+    isActive: true,
+    area: { $in: [employee.jobInfo.position, 'general'] }
+  });
+  
+  // Filter out completed courses
+  const completedCourseIds = completedCourses.map(c => c.courseId._id.toString());
+  const recommendedCourses = availableCourses.filter(
+    course => !completedCourseIds.includes(course._id.toString())
+  );
+  
+  return recommendedCourses.slice(0, 3); // Top 3 recommendations
+}
+```
+
+### Recommendation Logic
+
+<Steps>
+  <Step title="Role-Based Filtering">
+    Courses are filtered by employee position:
+    ```javascript
+    area: { $in: [employee.jobInfo.position, 'general'] }
+    ```
+    
+    Available areas:
+    - `enfermeria` - Nursing-specific content
+    - `urgencias` - Emergency department
+    - `maternidad` - Maternity ward
+    - `administracion` - Administrative staff
+    - `general` - All employees
+  </Step>
+  
+  <Step title="Completion History">
+    Exclude already completed courses:
+    ```javascript
+    const completedCourseIds = completedCourses.map(c => c.courseId._id.toString());
+    const recommendedCourses = availableCourses.filter(
+      course => !completedCourseIds.includes(course._id.toString())
+    );
+    ```
+  </Step>
+  
+  <Step title="Limit Results">
+    Return top 3 recommendations to avoid overwhelming users:
+    ```javascript
+    return recommendedCourses.slice(0, 3);
+    ```
+  </Step>
+</Steps>
+
+### API Usage
+
+```javascript
+GET /api/microlearning/recommendations/:employeeId
+
+Response:
+{
+  "status": "success",
+  "data": {
+    "recommendations": [
+      {
+        "_id": "507f1f77bcf86cd799439044",
+        "title": "Manejo de Crisis en Urgencias",
+        "description": "Técnicas para manejar situaciones de alta presión",
+        "area": "urgencias",
+        "content": {
+          "duration": 25,
+          "videoUrl": "https://..."
+        },
+        "passingScore": 70
+      },
+      {
+        "_id": "507f1f77bcf86cd799439055",
+        "title": "Comunicación Efectiva con Pacientes",
+        "description": "Mejora tus habilidades de comunicación",
+        "area": "general",
+        "content": {
+          "duration": 20,
+          "audioUrl": "https://...",
+          "pdfUrl": "https://..."
+        },
+        "passingScore": 70
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Certification System
+
+### Certification Types
+
+<CardGroup cols={2}>
+  <Card title="Participation Certificate" icon="certificate">
+    Awarded for course completion, regardless of quiz score
+    ```javascript
+    certificationType: 'participacion'
+    ```
+  </Card>
+  <Card title="Approval Certificate" icon="medal">
+    Awarded only when passing score is achieved
+    ```javascript
+    certificationType: 'aprobacion'
+    passingScore: 70
+    ```
+  </Card>
+</CardGroup>
+
+### Certificate Generation
+
+```javascript
+if (score >= course.passingScore) {
+  updateData['progress.status'] = 'completado';
+  updateData['progress.completedAt'] = new Date();
+  
+  if (course.certificationType === 'aprobacion') {
+    updateData['progress.certified'] = true;
+    updateData['progress.certificateIssuedAt'] = new Date();
+    // Generate certificate URL
+    // updateData['progress.certificateUrl'] = generateCertificateUrl(...);
+  }
+}
+```
+
+<Note>
+Certificate URL generation logic should be implemented based on your certificate generation service (e.g., PDF generation library, third-party service).
+</Note>
+
+---
+
+## Progress Tracking
+
+### Progress States
+
+```javascript
+status: {
+  type: String,
+  enum: ['inscrito', 'en_progreso', 'completado', 'reprobado'],
+  default: 'inscrito'
+}
+```
+
+<Steps>
+  <Step title="inscrito">
+    Initial state when employee enrolls in a course
+  </Step>
+  <Step title="en_progreso">
+    Employee has started watching content or taken Week 1 quiz
+  </Step>
+  <Step title="completado">
+    Employee passed final quiz with score >= passingScore
+  </Step>
+  <Step title="reprobado">
+    Employee failed final quiz (can retake based on course settings)
+  </Step>
+</Steps>
+
+### Track Content Consumption
+
+```javascript
+// Get employee's enrollments with progress
+GET /api/microlearning/my-courses/:employeeId
+
+Response:
+{
+  "enrollments": [
+    {
+      "course": {
+        "title": "RCP Básico",
+        "duration": 30
+      },
+      "progress": {
+        "status": "en_progreso",
+        "currentWeek": 2,
+        "week1QuizScore": 85,
+        "certified": false
+      },
+      "enrolledAt": "2024-01-10T08:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Training Hours Analytics
+
+Track total training hours for HR metrics:
+
+```javascript
+// From correlationService.js:255-265
+async calculateTrainingHours(hospitalId, startDate, endDate) {
+  const completedCourses = await CourseEnrollment.find({
+    'progress.completedAt': { $gte: startDate, $lte: endDate },
+    'progress.status': 'completado'
+  }).populate('courseId');
+  
+  return completedCourses.reduce((total, enrollment) => {
+    return total + (enrollment.courseId.content.duration || 1);
+  }, 0);
+}
+```
+
+<Note>
+Training hours are automatically included in monthly hospital performance metrics and correlation analysis.
+</Note>
+
+---
+
+## API Reference
+
+### Endpoints
+
+<CodeGroup>
+```javascript POST /api/microlearning/enroll
+// Enroll employee in course
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "courseId": "507f1f77bcf86cd799439022"
+}
+```
+
+```javascript POST /api/microlearning/quiz/submit
+// Submit quiz answers
+{
+  "employeeId": "507f1f77bcf86cd799439011",
+  "courseId": "507f1f77bcf86cd799439022",
+  "answers": [0, 2, 1, 3],
+  "quizType": "final"
+}
+```
+
+```javascript GET /api/microlearning/recommendations/:employeeId
+// Get personalized course recommendations
+GET /api/microlearning/recommendations/507f1f77bcf86cd799439011
+```
+
+```javascript GET /api/microlearning/my-courses/:employeeId
+// Get employee's enrolled courses and progress
+GET /api/microlearning/my-courses/507f1f77bcf86cd799439011
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Short Duration" icon="clock">
+    Keep courses under 30 minutes for maximum completion rates
+  </Card>
+  <Card title="Multimodal Content" icon="layer-group">
+    Provide video, audio, and PDF for different learning styles
+  </Card>
+  <Card title="Mobile-First" icon="mobile">
+    Optimize all content for mobile viewing during breaks
+  </Card>
+  <Card title="Immediate Feedback" icon="gauge-high">
+    Show quiz results instantly to reinforce learning
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Recognition Module" icon="trophy" href="/modules/recognition">
+    Learn about gamification and employee recognition
+  </Card>
+  <Card title="Course Creation" icon="pencil" href="/modules/microlearning">
+    Guide to creating effective microlearning courses
+  </Card>
+  <Card title="Correlation Analytics" icon="chart-line" href="/modules/correlation">
+    See how training correlates with performance metrics
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/microlearning/courses">
+    Complete API documentation for the Microlearning module
+  </Card>
+</CardGroup>

@@ -1,0 +1,510 @@
+---
+title: 'Performance Correlation Analysis'
+description: 'Generate and analyze correlations between HR metrics and hospital performance using AI'
+api: 'POST /api/correlation/metrics/:hospitalId'
+---
+
+## Overview
+
+The correlation analysis system automatically analyzes the relationship between human resource metrics (motivation, satisfaction, training) and hospital performance indicators (patient satisfaction, clinical errors, wait times). It uses AI to generate strategic insights and recommendations.
+
+## Authentication
+
+This endpoint requires authentication and **admin** role only.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+---
+
+## Generate Monthly Metrics
+
+Calculate correlation metrics for a specific hospital and time period.
+
+### Endpoint
+
+```
+POST /api/correlation/metrics/:hospitalId
+```
+
+### Path Parameters
+
+<ParamField path="hospitalId" type="string" required>
+  The unique identifier of the hospital
+</ParamField>
+
+### Request Body
+
+<ParamField body="year" type="number" required>
+  Year for the metrics period (e.g., 2024)
+</ParamField>
+
+<ParamField body="month" type="number" required>
+  Month for the metrics period (1-12)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if metrics were generated successfully
+</ResponseField>
+
+<ResponseField name="data.metrics" type="object">
+  Complete metrics object with HR data, hospital data, and correlations
+  
+  <Expandable title="metrics properties">
+    <ResponseField name="hospitalId" type="string">
+      Hospital identifier
+    </ResponseField>
+    
+    <ResponseField name="period" type="object">
+      Time period for these metrics
+      
+      <Expandable title="period properties">
+        <ResponseField name="year" type="number">
+          Year
+        </ResponseField>
+        
+        <ResponseField name="month" type="number">
+          Month (1-12)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="hrMetrics" type="object">
+      Human resources metrics
+      
+      <Expandable title="hrMetrics properties">
+        <ResponseField name="totalEmployees" type="number">
+          Total active employees
+        </ResponseField>
+        
+        <ResponseField name="avgMotivation" type="number">
+          Average motivation level (0-10)
+        </ResponseField>
+        
+        <ResponseField name="avgSatisfaction" type="number">
+          Average satisfaction level (0-10)
+        </ResponseField>
+        
+        <ResponseField name="flightRiskEmployees" type="number">
+          Number of employees at high flight risk
+        </ResponseField>
+        
+        <ResponseField name="trainingHours" type="number">
+          Total training hours completed
+        </ResponseField>
+        
+        <ResponseField name="recognitionsGiven" type="number">
+          Total recognitions awarded
+        </ResponseField>
+        
+        <ResponseField name="surveyParticipation" type="number">
+          Survey participation rate (%)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="hospitalMetrics" type="object">
+      Hospital performance metrics
+      
+      <Expandable title="hospitalMetrics properties">
+        <ResponseField name="patientSatisfaction" type="number">
+          Patient satisfaction score (0-10)
+        </ResponseField>
+        
+        <ResponseField name="clinicalErrors" type="number">
+          Number of clinical errors
+        </ResponseField>
+        
+        <ResponseField name="readmissionRate" type="number">
+          Readmission rate (%)
+        </ResponseField>
+        
+        <ResponseField name="averageWaitTime" type="number">
+          Average patient wait time (minutes)
+        </ResponseField>
+        
+        <ResponseField name="consultationsPerDay" type="number">
+          Average consultations per day
+        </ResponseField>
+        
+        <ResponseField name="absenteeismRate" type="number">
+          Employee absenteeism rate (%)
+        </ResponseField>
+        
+        <ResponseField name="bedOccupancy" type="number">
+          Bed occupancy rate (%)
+        </ResponseField>
+        
+        <ResponseField name="emergencyResponseTime" type="number">
+          Emergency response time (minutes)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="correlations" type="array">
+      Array of detected correlations
+      
+      <Expandable title="correlation properties">
+        <ResponseField name="hrVariable" type="string">
+          HR metric variable name (e.g., "avgMotivation")
+        </ResponseField>
+        
+        <ResponseField name="hospitalVariable" type="string">
+          Hospital metric variable name (e.g., "clinicalErrors")
+        </ResponseField>
+        
+        <ResponseField name="correlation" type="number">
+          Correlation coefficient (-1 to 1)
+        </ResponseField>
+        
+        <ResponseField name="significance" type="string">
+          Significance level: `alta`, `media`, `baja`
+        </ResponseField>
+        
+        <ResponseField name="impact" type="string">
+          Human-readable description of the correlation's impact
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="calculatedAt" type="string">
+      ISO 8601 timestamp of when metrics were calculated
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.cuido.com/api/correlation/metrics/HOSPITAL_001 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "year": 2024,
+    "month": 1
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/correlation/metrics/HOSPITAL_001', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    year: 2024,
+    month: 1
+  })
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Métricas mensuales generadas",
+  "data": {
+    "metrics": {
+      "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
+      "hospitalId": "HOSPITAL_001",
+      "period": {
+        "year": 2024,
+        "month": 1
+      },
+      "hrMetrics": {
+        "totalEmployees": 85,
+        "avgMotivation": 6.8,
+        "avgSatisfaction": 7.2,
+        "flightRiskEmployees": 12,
+        "trainingHours": 340,
+        "recognitionsGiven": 45,
+        "surveyParticipation": 78
+      },
+      "hospitalMetrics": {
+        "patientSatisfaction": 7.5,
+        "clinicalErrors": 3,
+        "readmissionRate": 8.5,
+        "averageWaitTime": 35,
+        "consultationsPerDay": 125,
+        "absenteeismRate": 5.2,
+        "bedOccupancy": 82.5,
+        "emergencyResponseTime": 8
+      },
+      "correlations": [
+        {
+          "hrVariable": "avgSatisfaction",
+          "hospitalVariable": "patientSatisfaction",
+          "correlation": 0.8,
+          "significance": "alta",
+          "impact": "Personal satisfecho mejora la experiencia del paciente"
+        }
+      ],
+      "calculatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+## Get Historical Metrics
+
+Retrieve historical metrics for trend analysis.
+
+### Endpoint
+
+```
+GET /api/correlation/metrics/:hospitalId/history
+```
+
+### Query Parameters
+
+<ParamField query="months" type="number">
+  Number of months of history to retrieve. Default: 6
+</ParamField>
+
+### Response
+
+<ResponseField name="data.metrics" type="array">
+  Array of monthly metrics objects, sorted by most recent first
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.cuido.com/api/correlation/metrics/HOSPITAL_001/history?months=6" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/correlation/metrics/HOSPITAL_001/history?months=6', {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+---
+
+## Generate Strategic Report
+
+Generate an AI-powered strategic report with insights and recommendations.
+
+### Endpoint
+
+```
+GET /api/correlation/report/:hospitalId
+```
+
+### Query Parameters
+
+<ParamField query="year" type="number" required>
+  Year for the report
+</ParamField>
+
+<ParamField query="month" type="number" required>
+  Month for the report (1-12)
+</ParamField>
+
+### Response
+
+<ResponseField name="data.report" type="object">
+  AI-generated strategic report
+  
+  <Expandable title="report properties">
+    <ResponseField name="period" type="string">
+      Period string (e.g., "1/2024")
+    </ResponseField>
+    
+    <ResponseField name="hospitalId" type="string">
+      Hospital identifier
+    </ResponseField>
+    
+    <ResponseField name="generatedAt" type="string">
+      ISO 8601 timestamp of report generation
+    </ResponseField>
+    
+    <ResponseField name="metrics" type="object">
+      The complete metrics object used for analysis
+    </ResponseField>
+    
+    <ResponseField name="strategicAnalysis" type="string">
+      AI-generated comprehensive analysis in Spanish
+    </ResponseField>
+    
+    <ResponseField name="keyInsights" type="array">
+      Array of extracted key insights (up to 5)
+    </ResponseField>
+    
+    <ResponseField name="recommendations" type="array">
+      Array of top 3 actionable recommendations
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.cuido.com/api/correlation/report/HOSPITAL_001?year=2024&month=1" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/correlation/report/HOSPITAL_001?year=2024&month=1', {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Reporte estratégico generado",
+  "data": {
+    "report": {
+      "period": "1/2024",
+      "hospitalId": "HOSPITAL_001",
+      "generatedAt": "2024-01-15T10:30:00.000Z",
+      "metrics": { /* full metrics object */ },
+      "strategicAnalysis": "ESTADO GENERAL DEL HOSPITAL:\n\nEl Hospital 001 muestra un desempeño sólido con indicadores positivos en satisfacción del personal (7.2/10) y satisfacción del paciente (7.5/10). La correlación positiva entre estos factores (0.8) confirma que el bienestar del personal impacta directamente en la experiencia del paciente.\n\nÁREAS DE RIESGO INMEDIATO:\n\n1. Riesgo de fuga de talento: 12 empleados (14% del personal) identificados en alto riesgo\n2. Participación en encuestas: Aunque 78% es aceptable, el 22% restante representa voces no escuchadas\n3. Errores clínicos: 3 errores reportados requieren análisis de causa raíz\n\nOPORTUNIDADES DE MEJORA:\n\n1. Capitalizar la alta satisfacción del personal para programas de referidos\n2. Incrementar horas de capacitación (actualmente 340h/mes) en áreas de alto riesgo\n3. Replicar prácticas del sistema de reconocimiento (45 otorgados) en otros departamentos\n\nRECOMENDACIONES PRIORITARIAS:\n\n1. Plan de retención: Entrevistas 1-a-1 con los 12 empleados en riesgo de fuga para identificar causas y soluciones personalizadas\n2. Programa de capacitación: Aumentar 20% las horas de formación enfocadas en prevención de errores clínicos\n3. Sistema de escucha activa: Implementar encuestas breves semanales para aumentar participación al 90%\n\nINDICADORES A MONITOREAR EL PRÓXIMO MES:\n\n- Reducción de empleados en riesgo de fuga (meta: <10)\n- Incremento en participación de encuestas (meta: 85%)\n- Mantenimiento de cero errores clínicos graves\n- Satisfacción del paciente (mantener >7.5)",
+      "keyInsights": [
+        "La correlación positiva entre estos factores (0.8) confirma que el bienestar del personal impacta directamente en la experiencia del paciente.",
+        "Riesgo de fuga de talento: 12 empleados (14% del personal) identificados en alto riesgo",
+        "3 errores reportados requieren análisis de causa raíz"
+      ],
+      "recommendations": [
+        "Plan de retención: Entrevistas 1-a-1 con los 12 empleados en riesgo de fuga para identificar causas y soluciones personalizadas",
+        "Programa de capacitación: Aumentar 20% las horas de formación enfocadas en prevención de errores clínicos",
+        "Sistema de escucha activa: Implementar encuestas breves semanales para aumentar participación al 90%"
+      ]
+    }
+  }
+}
+```
+
+---
+
+## Get Executive Dashboard
+
+Get a summary dashboard with current metrics and trends.
+
+### Endpoint
+
+```
+GET /api/correlation/dashboard/:hospitalId
+```
+
+### Response
+
+<ResponseField name="data.dashboard" type="object">
+  Executive dashboard with current period, metrics, trends, and alerts
+  
+  <Expandable title="dashboard properties">
+    <ResponseField name="currentPeriod" type="object">
+      Current year and month
+    </ResponseField>
+    
+    <ResponseField name="metrics" type="object">
+      Current month's complete metrics or null if not calculated
+    </ResponseField>
+    
+    <ResponseField name="trends" type="object">
+      Month-over-month changes
+      
+      <Expandable title="trends properties">
+        <ResponseField name="motivation" type="number">
+          Change in average motivation
+        </ResponseField>
+        
+        <ResponseField name="satisfaction" type="number">
+          Change in average satisfaction
+        </ResponseField>
+        
+        <ResponseField name="flightRisk" type="number">
+          Change in flight risk employees count
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="keyAlerts" type="array">
+      Array of high-significance correlations requiring attention
+    </ResponseField>
+    
+    <ResponseField name="lastUpdated" type="string">
+      ISO 8601 timestamp of last calculation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.cuido.com/api/correlation/dashboard/HOSPITAL_001 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/correlation/dashboard/HOSPITAL_001', {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+## Correlation Detection Algorithm
+
+The system (`src/services/correlationService.js:131`) detects basic correlations:
+
+1. **Motivation vs Clinical Errors** (inverse correlation)
+   - If `avgMotivation < 5` AND `clinicalErrors > 5`
+   - Correlation: -0.7 (high significance)
+
+2. **Satisfaction vs Patient Satisfaction** (positive correlation)
+   - If `avgSatisfaction > 7` AND `patientSatisfaction > 7`
+   - Correlation: 0.8 (high significance)
+
+3. **Flight Risk vs Wait Time** (positive correlation)
+   - If `flightRiskEmployees > 20%` of total employees
+   - Correlation: 0.6 (medium significance)
+
+## AI Integration
+
+Strategic reports use Claude AI (`src/services/correlationService.js:173`) with:
+
+- **Temperature**: 0.4 (factual, less creative)
+- **Max Tokens**: 1500
+- **System Prompt**: Senior hospital management consultant
+- **Output**: Strategic analysis with 5 sections
+
+## Source Code References
+
+- Routes: `src/routes/correlationRoutes.js:16-19`
+- Controllers: `src/controllers/correlationController.js`
+- Service: `src/services/correlationService.js:15`
+- Correlation Logic: `src/services/correlationService.js:131`
+- AI Report: `src/services/correlationService.js:173`
+- Model: `src/models/PerformanceMetric.js`

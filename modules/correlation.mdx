@@ -1,0 +1,627 @@
+---
+title: 'Correlation Module'
+description: 'Advanced analytics correlating HR wellness metrics with hospital performance indicators to drive data-informed decisions'
+---
+
+## Overview
+
+The Correlation module connects the dots between employee wellness and hospital performance. By analyzing relationships between HR metrics (motivation, satisfaction, training) and clinical outcomes (errors, wait times, patient satisfaction), it provides strategic insights for leadership.
+
+<Note>
+This module integrates with all other CUIDO modules to create comprehensive performance reports, combining employee wellness data with operational hospital metrics.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Monthly Metrics" icon="calendar">
+    Automated monthly collection of HR and hospital performance data
+  </Card>
+  <Card title="Correlation Analysis" icon="chart-scatter">
+    Statistical analysis identifying relationships between wellness and performance
+  </Card>
+  <Card title="AI Reports" icon="brain">
+    Claude-powered strategic reports with actionable recommendations
+  </Card>
+  <Card title="Trend Detection" icon="arrow-trend-up">
+    Identify improving or declining patterns across multiple metrics
+  </Card>
+</CardGroup>
+
+---
+
+## Performance Metrics Collection
+
+### Monthly Metrics Generation
+
+The system automatically collects comprehensive metrics each month:
+
+```javascript
+// From correlationService.js:15-56
+async generateMonthlyMetrics(hospitalId, year, month) {
+  // Collect HR metrics
+  const hrMetrics = await this.collectHRMetrics(hospitalId, year, month);
+  
+  // Collect hospital operational metrics
+  const hospitalMetrics = await this.collectHospitalMetrics(hospitalId, year, month);
+  
+  // Calculate correlations
+  const correlations = this.calculateBasicCorrelations(hrMetrics, hospitalMetrics);
+  
+  // Create or update metrics record
+  const metrics = await PerformanceMetric.findOneAndUpdate(
+    {
+      hospitalId,
+      'period.year': year,
+      'period.month': month
+    },
+    {
+      hospitalId,
+      period: { year, month },
+      hrMetrics,
+      hospitalMetrics,
+      correlations,
+      calculatedAt: new Date()
+    },
+    { upsert: true, new: true }
+  );
+  
+  logger.info('Métricas mensuales generadas', {
+    hospitalId,
+    year,
+    month,
+    correlationsFound: correlations.length
+  });
+  
+  return metrics;
+}
+```
+
+---
+
+## HR Metrics
+
+### Collection Process
+
+<Steps>
+  <Step title="Employee Statistics">
+    Aggregate employee counts and status:
+    
+    ```javascript
+    // From correlationService.js:61-108
+    async collectHRMetrics(hospitalId, year, month) {
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0);
+      
+      // Active employees
+      const totalEmployees = await Employee.countDocuments({
+        hospitalId,
+        'currentStatus.isActive': true
+      });
+      
+      // Motivation and satisfaction averages
+      const motivationData = await Employee.aggregate([
+        { $match: { hospitalId, 'currentStatus.isActive': true } },
+        {
+          $group: {
+            _id: null,
+            avgMotivation: { $avg: '$currentStatus.motivationLevel' },
+            avgSatisfaction: { $avg: '$currentStatus.satisfactionLevel' },
+            flightRiskEmployees: {
+              $sum: { $cond: [{ $eq: ['$currentStatus.flightRisk.level', 'ALTO'] }, 1, 0] }
+            }
+          }
+        }
+      ]);
+    }
+    ```
+  </Step>
+  
+  <Step title="Survey Participation">
+    Calculate employee engagement:
+    
+    ```javascript
+    // From correlationService.js:242-253
+    async calculateSurveyParticipation(hospitalId, startDate, endDate) {
+      const totalEmployees = await Employee.countDocuments({
+        hospitalId,
+        'currentStatus.isActive': true
+      });
+      
+      const surveysCompleted = await QuickSurvey.countDocuments({
+        completedAt: { $gte: startDate, $lte: endDate }
+      });
+      
+      return totalEmployees > 0 
+        ? Math.round((surveysCompleted / totalEmployees) * 100) 
+        : 0;
+    }
+    ```
+  </Step>
+  
+  <Step title="Training Hours">
+    Sum completed training time:
+    
+    ```javascript
+    // From correlationService.js:255-265
+    async calculateTrainingHours(hospitalId, startDate, endDate) {
+      const completedCourses = await CourseEnrollment.find({
+        'progress.completedAt': { $gte: startDate, $lte: endDate },
+        'progress.status': 'completado'
+      }).populate('courseId');
+      
+      return completedCourses.reduce((total, enrollment) => {
+        return total + (enrollment.courseId.content.duration || 1);
+      }, 0);
+    }
+    ```
+  </Step>
+  
+  <Step title="Recognition Tracking">
+    Count recognitions awarded:
+    
+    ```javascript
+    const recognitionsGiven = await Recognition.countDocuments({
+      issuedAt: { $gte: startDate, $lte: endDate }
+    });
+    ```
+  </Step>
+</Steps>
+
+### HR Metrics Output
+
+```javascript
+hrMetrics: {
+  totalEmployees: 156,
+  avgMotivation: 7.2,        // Out of 10
+  avgSatisfaction: 6.8,      // Out of 10
+  flightRiskEmployees: 12,   // Count of high-risk employees
+  trainingHours: 248,        // Total hours across all employees
+  recognitionsGiven: 45,     // Recognition events this month
+  surveyParticipation: 67    // Percentage of employees who participated
+}
+```
+
+---
+
+## Hospital Metrics
+
+### Operational Performance Data
+
+<Warning>
+In production, these metrics should integrate with your Hospital Information System (HIS) or Electronic Medical Records (EMR). The current implementation uses simulated data for demonstration.
+</Warning>
+
+```javascript
+// From correlationService.js:110-126
+async collectHospitalMetrics(hospitalId, year, month) {
+  // In production: integrate with HIS/EMR systems
+  // For now: simulated baseline metrics
+  return {
+    patientSatisfaction: 7.5,           // Survey score out of 10
+    clinicalErrors: Math.floor(Math.random() * 10) + 1,
+    readmissionRate: Math.round((Math.random() * 15) * 10) / 10,  // Percentage
+    averageWaitTime: Math.floor(Math.random() * 60) + 20,         // Minutes
+    consultationsPerDay: Math.floor(Math.random() * 50) + 100,
+    absenteeismRate: Math.round((Math.random() * 10) * 10) / 10,  // Percentage
+    bedOccupancy: Math.round((Math.random() * 30 + 70) * 10) / 10, // Percentage
+    emergencyResponseTime: Math.floor(Math.random() * 10) + 5     // Minutes
+  };
+}
+```
+
+### Integration Points
+
+<Accordion title="Patient Satisfaction">
+  Source: Patient feedback surveys, HCAHPS scores
+  
+  Integration:
+  ```javascript
+  const patientSatisfaction = await HIS.getPatientSatisfactionScore(hospitalId, month, year);
+  ```
+</Accordion>
+
+<Accordion title="Clinical Errors">
+  Source: Incident reporting system, safety database
+  
+  Integration:
+  ```javascript
+  const clinicalErrors = await IncidentReportingSystem.getErrorCount(hospitalId, startDate, endDate);
+  ```
+</Accordion>
+
+<Accordion title="Readmission Rate">
+  Source: EMR system, admissions database
+  
+  Integration:
+  ```javascript
+  const readmissionRate = await EMR.calculateReadmissionRate(hospitalId, month, year);
+  ```
+</Accordion>
+
+<Accordion title="Wait Times">
+  Source: Queue management system, ER tracking
+  
+  Integration:
+  ```javascript
+  const averageWaitTime = await QueueSystem.getAverageWaitTime(hospitalId, month, year);
+  ```
+</Accordion>
+
+---
+
+## Correlation Analysis
+
+### Basic Correlation Calculation
+
+The system identifies significant relationships between HR and hospital metrics:
+
+```javascript
+// From correlationService.js:128-168
+calculateBasicCorrelations(hrMetrics, hospitalMetrics) {
+  const correlations = [];
+  
+  // Correlation: Low motivation → More clinical errors
+  if (hrMetrics.avgMotivation < 5 && hospitalMetrics.clinicalErrors > 5) {
+    correlations.push({
+      hrVariable: 'avgMotivation',
+      hospitalVariable: 'clinicalErrors',
+      correlation: -0.7,
+      significance: 'alta',
+      impact: 'Baja motivación del personal se correlaciona con más errores clínicos'
+    });
+  }
+  
+  // Correlation: Staff satisfaction → Patient satisfaction
+  if (hrMetrics.avgSatisfaction > 7 && hospitalMetrics.patientSatisfaction > 7) {
+    correlations.push({
+      hrVariable: 'avgSatisfaction',
+      hospitalVariable: 'patientSatisfaction',
+      correlation: 0.8,
+      significance: 'alta',
+      impact: 'Personal satisfecho mejora la experiencia del paciente'
+    });
+  }
+  
+  // Correlation: Flight risk → Wait times
+  if (hrMetrics.flightRiskEmployees > hrMetrics.totalEmployees * 0.2) {
+    correlations.push({
+      hrVariable: 'flightRiskEmployees',
+      hospitalVariable: 'averageWaitTime',
+      correlation: 0.6,
+      significance: 'media',
+      impact: 'Alto riesgo de fuga afecta los tiempos de atención'
+    });
+  }
+  
+  return correlations;
+}
+```
+
+### Correlation Types
+
+<CardGroup cols={2}>
+  <Card title="Positive Correlation" icon="arrow-up-right">
+    Both metrics move in the same direction
+    
+    Example: Staff satisfaction ↑ → Patient satisfaction ↑
+  </Card>
+  <Card title="Negative Correlation" icon="arrow-down-right">
+    Metrics move in opposite directions
+    
+    Example: Staff motivation ↓ → Clinical errors ↑
+  </Card>
+</CardGroup>
+
+### Significance Levels
+
+| Level | Correlation | Action Required |
+|-------|-------------|------------------|
+| **Alta** | ±0.7 to ±1.0 | Immediate strategic action |
+| **Media** | ±0.4 to ±0.69 | Monitor and plan intervention |
+| **Baja** | ±0.1 to ±0.39 | Informational only |
+
+---
+
+## AI-Powered Strategic Reports
+
+### Generate Strategic Analysis
+
+Claude analyzes metrics and generates executive-level insights:
+
+<Steps>
+  <Step title="Retrieve Monthly Metrics">
+    ```javascript
+    // From correlationService.js:173-209
+    async generateStrategicReport(hospitalId, year, month) {
+      const metrics = await PerformanceMetric.findOne({
+        hospitalId,
+        'period.year': year,
+        'period.month': month
+      });
+      
+      if (!metrics) {
+        throw new AppError('Métricas no encontradas para el período', 404);
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Build Analysis Prompt">
+    ```javascript
+    // From correlationService.js:211-239
+    buildStrategicReportPrompt(metrics) {
+      return `Analiza las siguientes métricas hospitalarias y genera un reporte estratégico:
+      
+      MÉTRICAS DE TALENTO HUMANO:
+      - Total empleados: ${metrics.hrMetrics.totalEmployees}
+      - Motivación promedio: ${metrics.hrMetrics.avgMotivation}/10
+      - Satisfacción promedio: ${metrics.hrMetrics.avgSatisfaction}/10
+      - Empleados en riesgo de fuga: ${metrics.hrMetrics.flightRiskEmployees}
+      - Horas de capacitación: ${metrics.hrMetrics.trainingHours}
+      - Participación en encuestas: ${metrics.hrMetrics.surveyParticipation}%
+      
+      MÉTRICAS HOSPITALARIAS:
+      - Satisfacción del paciente: ${metrics.hospitalMetrics.patientSatisfaction}/10
+      - Errores clínicos: ${metrics.hospitalMetrics.clinicalErrors}
+      - Tasa de reingresos: ${metrics.hospitalMetrics.readmissionRate}%
+      - Tiempo promedio de espera: ${metrics.hospitalMetrics.averageWaitTime} min
+      
+      CORRELACIONES DETECTADAS:
+      ${metrics.correlations.map(c => `- ${c.impact} (${c.significance})`).join('\n')}
+      
+      Genera un análisis estratégico que incluya:
+      1. Estado general del hospital
+      2. Áreas de riesgo inmediato
+      3. Oportunidades de mejora
+      4. Tres recomendaciones prioritarias
+      5. Indicadores a monitorear el próximo mes`;
+    }
+    ```
+  </Step>
+  
+  <Step title="Generate with Claude">
+    ```javascript
+    const response = await claudeService.generateResponse(prompt, {
+      maxTokens: 1500,
+      temperature: 0.4,  // Lower temperature for analytical, factual responses
+      systemMessage: `Eres un consultor senior en gestión hospitalaria. 
+      Genera reportes estratégicos basados en datos de talento humano y 
+      desempeño institucional, con recomendaciones prácticas y accionables.`
+    });
+    ```
+  </Step>
+  
+  <Step title="Extract Insights">
+    ```javascript
+    // From correlationService.js:267-293
+    extractKeyInsights(analysis) {
+      const insights = [];
+      const lines = analysis.split('\n');
+      
+      lines.forEach(line => {
+        if (line.includes('clave') || line.includes('importante') || line.includes('crítico')) {
+          insights.push(line.trim());
+        }
+      });
+      
+      return insights.slice(0, 5);
+    }
+    
+    extractRecommendations(analysis) {
+      const recommendations = [];
+      const lines = analysis.split('\n');
+      
+      lines.forEach(line => {
+        if (line.match(/^\d+\./) || line.includes('recomienda') || line.includes('debe')) {
+          recommendations.push(line.trim());
+        }
+      });
+      
+      return recommendations.slice(0, 3);
+    }
+    ```
+  </Step>
+</Steps>
+
+### Strategic Report Output
+
+```javascript
+GET /api/correlation/report/:hospitalId?year=2024&month=1
+
+Response:
+{
+  "period": "1/2024",
+  "hospitalId": "507f1f77bcf86cd799439011",
+  "generatedAt": "2024-02-01T08:00:00Z",
+  "metrics": {
+    "hrMetrics": { /* ... */ },
+    "hospitalMetrics": { /* ... */ },
+    "correlations": [ /* ... */ ]
+  },
+  "strategicAnalysis": "El hospital presenta un estado general positivo con áreas específicas de atención...\n\nÁreas de riesgo inmediato:\n1. Tasa de rotación en departamento de urgencias...\n\nRecomendaciones prioritarias:\n1. Implementar programa de retención en urgencias\n2. Aumentar capacitación en manejo de estrés\n3. Reforzar programa de reconocimiento...",
+  "keyInsights": [
+    "La satisfacción del personal tiene correlación directa con reducción de errores clínicos",
+    "Departamento de urgencias requiere intervención inmediata",
+    "Programa de capacitación muestra resultados positivos en retención"
+  ],
+  "recommendations": [
+    "1. Implementar programa de retención focalizado en urgencias con incentivos específicos",
+    "2. Aumentar capacitación en manejo de estrés y burnout, especialmente en turnos nocturnos",
+    "3. Reforzar programa de reconocimiento con recompensas tangibles para empleados destacados"
+  ]
+}
+```
+
+---
+
+## Temperature Configuration
+
+<Note>
+**Temperature: 0.4** - Lower than mentorship (0.8) because:
+- Strategic reports require factual, analytical tone
+- Recommendations should be consistent and reliable
+- Less creativity, more data-driven insights
+- Professional executive-level language
+</Note>
+
+---
+
+## Correlation Examples
+
+### Example 1: Motivation and Clinical Errors
+
+```javascript
+{
+  "hrVariable": "avgMotivation",
+  "hospitalVariable": "clinicalErrors",
+  "correlation": -0.7,
+  "significance": "alta",
+  "impact": "Baja motivación del personal se correlaciona con más errores clínicos"
+}
+```
+
+**Interpretation**: When staff motivation drops below 5/10, clinical errors increase significantly. This negative correlation (-0.7) is statistically significant and requires immediate intervention.
+
+**Recommended Actions**:
+1. Investigate root causes of low motivation
+2. Implement recognition programs
+3. Review workload distribution
+4. Provide mental health support
+
+### Example 2: Staff Satisfaction and Patient Satisfaction
+
+```javascript
+{
+  "hrVariable": "avgSatisfaction",
+  "hospitalVariable": "patientSatisfaction",
+  "correlation": 0.8,
+  "significance": "alta",
+  "impact": "Personal satisfecho mejora la experiencia del paciente"
+}
+```
+
+**Interpretation**: Happy staff create happy patients. Strong positive correlation (0.8) shows that investing in employee satisfaction directly improves patient experience.
+
+**Recommended Actions**:
+1. Continue and expand employee wellness programs
+2. Track both metrics monthly to maintain correlation
+3. Share success stories to reinforce positive culture
+
+### Example 3: Flight Risk and Wait Times
+
+```javascript
+{
+  "hrVariable": "flightRiskEmployees",
+  "hospitalVariable": "averageWaitTime",
+  "correlation": 0.6,
+  "significance": "media",
+  "impact": "Alto riesgo de fuga afecta los tiempos de atención"
+}
+```
+
+**Interpretation**: When >20% of staff are at flight risk, patient wait times increase. Medium correlation (0.6) suggests retention issues impact operational efficiency.
+
+**Recommended Actions**:
+1. Prioritize retention programs for high-risk departments
+2. Hire temporary staff to cover gaps
+3. Streamline processes to reduce wait times
+
+---
+
+## Monthly Metrics Dashboard
+
+### Metrics Visualization
+
+Recommended dashboard layout:
+
+<CardGroup cols={3}>
+  <Card title="HR Metrics" icon="users">
+    - Total Employees: 156
+    - Motivation: 7.2/10
+    - Satisfaction: 6.8/10
+    - Flight Risk: 12 (7.7%)
+  </Card>
+  <Card title="Hospital Metrics" icon="hospital">
+    - Patient Satisfaction: 7.5/10
+    - Clinical Errors: 3
+    - Avg Wait Time: 42 min
+    - Bed Occupancy: 87%
+  </Card>
+  <Card title="Training & Engagement" icon="graduation-cap">
+    - Training Hours: 248
+    - Survey Participation: 67%
+    - Recognitions: 45
+    - Courses Completed: 23
+  </Card>
+</CardGroup>
+
+---
+
+## API Reference
+
+### Endpoints
+
+<CodeGroup>
+```javascript POST /api/correlation/generate
+// Generate monthly metrics
+{
+  "hospitalId": "507f1f77bcf86cd799439011",
+  "year": 2024,
+  "month": 1
+}
+```
+
+```javascript GET /api/correlation/metrics/:hospitalId
+// Get metrics for specific period
+GET /api/correlation/metrics/507f1f77bcf86cd799439011?year=2024&month=1
+```
+
+```javascript GET /api/correlation/report/:hospitalId
+// Generate AI-powered strategic report
+GET /api/correlation/report/507f1f77bcf86cd799439011?year=2024&month=1
+```
+
+```javascript GET /api/correlation/trends/:hospitalId
+// Get multi-month trends
+GET /api/correlation/trends/507f1f77bcf86cd799439011?months=6
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Monthly Cadence" icon="calendar-check">
+    Generate metrics on the 1st of each month for previous month's data
+  </Card>
+  <Card title="HIS Integration" icon="plug">
+    Integrate with your Hospital Information System for accurate clinical data
+  </Card>
+  <Card title="Executive Reviews" icon="presentation">
+    Share strategic reports in monthly leadership meetings
+  </Card>
+  <Card title="Action Plans" icon="list-check">
+    Create specific action plans for each high-significance correlation
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Diagnostic Module" icon="chart-line" href="/modules/diagnostic">
+    Learn how wellness surveys feed into correlation analysis
+  </Card>
+  <Card title="Microlearning" icon="graduation-cap" href="/modules/microlearning">
+    See how training hours impact performance metrics
+  </Card>
+  <Card title="Dashboard Setup" icon="gauge" href="/modules/correlation">
+    Build a comprehensive analytics dashboard
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/correlation/analyze">
+    Complete API documentation for the Correlation module
+  </Card>
+</CardGroup>

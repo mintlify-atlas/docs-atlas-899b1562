@@ -1,0 +1,485 @@
+---
+title: 'Testing Guide'
+description: 'Learn how to write and run tests for CUIDO Backend using Jest and Supertest'
+---
+
+## Testing Stack
+
+CUIDO Backend uses a modern testing stack designed for Node.js applications:
+
+<CardGroup cols={2}>
+  <Card title="Jest" icon="vial">
+    **Version 30.1.3** - Testing framework with built-in assertions, mocking, and coverage
+  </Card>
+  <Card title="Supertest" icon="flask">
+    **Version 7.1.4** - HTTP assertion library for testing Express APIs
+  </Card>
+  <Card title="cross-env" icon="circle-nodes">
+    **Version 10.0.0** - Cross-platform environment variable management
+  </Card>
+</CardGroup>
+
+## Test Commands
+
+All test commands are configured in `package.json` and use `cross-env` to set `NODE_ENV=test`:
+
+### Run All Tests
+
+```bash
+npm test
+```
+
+This runs the full test suite with the following Jest configuration:
+- `--detectOpenHandles` - Detects async operations that prevent Jest from exiting
+- `--forceExit` - Forces Jest to exit after tests complete
+
+### Watch Mode
+
+```bash
+npm run test:watch
+```
+
+Runs tests in interactive watch mode. Perfect for test-driven development (TDD):
+- Automatically re-runs tests when files change
+- Provides interactive filtering options
+- Shows only relevant tests
+
+<Tip>
+  Press `p` in watch mode to filter tests by filename pattern, or `t` to filter by test name.
+</Tip>
+
+### Coverage Report
+
+```bash
+npm run test:coverage
+```
+
+Generates a comprehensive code coverage report showing:
+- **Statements** - % of statements executed
+- **Branches** - % of conditional branches tested
+- **Functions** - % of functions called
+- **Lines** - % of lines executed
+
+Coverage reports are saved to the `coverage/` directory (gitignored).
+
+## Test Environment Setup
+
+### Environment Configuration
+
+When `NODE_ENV=test`, the application behaves differently:
+
+```javascript server.js
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+```
+
+This prevents the server from auto-starting during tests, allowing you to control the lifecycle.
+
+### Test Database
+
+<Warning>
+  Always use a separate test database to avoid corrupting development data.
+</Warning>
+
+Create a `.env.test` file for test-specific configuration:
+
+```env .env.test
+NODE_ENV=test
+MONGODB_URI=mongodb://localhost:27017/cuido-test-db
+JWT_SECRET=test_jwt_secret_for_testing_only
+ANTHROPIC_API_KEY=sk-ant-api03-test-key
+CLAUDE_MODEL=claude-3-sonnet-20240229
+ENABLE_CRON_JOBS=false
+```
+
+## Writing Tests
+
+### Project Structure
+
+Organize tests alongside your source code or in a dedicated `__tests__` directory:
+
+```
+src/
+├── controllers/
+│   ├── authController.js
+│   └── __tests__/
+│       └── authController.test.js
+├── services/
+│   ├── claudeService.js
+│   └── __tests__/
+│       └── claudeService.test.js
+└── models/
+    ├── User.js
+    └── __tests__/
+        └── User.test.js
+```
+
+### API Endpoint Tests
+
+Use **Supertest** to test Express routes without starting the actual server:
+
+```javascript __tests__/auth.test.js
+import request from 'supertest';
+import app from '../app.js';
+import { connectDB } from '../config/database.js';
+import User from '../models/User.js';
+
+describe('Authentication Endpoints', () => {
+  beforeAll(async () => {
+    await connectDB();
+  });
+
+  afterAll(async () => {
+    await User.deleteMany({});
+    await mongoose.connection.close();
+  });
+
+  describe('POST /api/auth/register', () => {
+    it('should register a new user', async () => {
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Test User',
+          email: 'test@example.com',
+          password: 'SecurePass123!',
+          role: 'doctor'
+        })
+        .expect(201);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data.user.email).toBe('test@example.com');
+    });
+
+    it('should reject duplicate email', async () => {
+      // First registration
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'User One',
+          email: 'duplicate@example.com',
+          password: 'Password123!',
+          role: 'nurse'
+        });
+
+      // Attempt duplicate
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'User Two',
+          email: 'duplicate@example.com',
+          password: 'Password456!',
+          role: 'nurse'
+        })
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toContain('ya existe');
+    });
+  });
+
+  describe('POST /api/auth/login', () => {
+    it('should login with valid credentials', async () => {
+      // Create user first
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Login Test',
+          email: 'login@example.com',
+          password: 'TestPass123!',
+          role: 'admin'
+        });
+
+      // Login
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'TestPass123!'
+        })
+        .expect(200);
+
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data.user.email).toBe('login@example.com');
+    });
+  });
+});
+```
+
+### Service Tests
+
+Test business logic independently from HTTP layer:
+
+```javascript __tests__/claudeService.test.js
+import claudeService from '../services/claudeService.js';
+
+describe('Claude Service', () => {
+  describe('validateConfiguration', () => {
+    it('should validate correct configuration', () => {
+      const result = claudeService.validateConfiguration();
+      expect(result.valid).toBe(true);
+      expect(result.issues).toHaveLength(0);
+    });
+  });
+
+  describe('generateResponse', () => {
+    it('should generate AI response', async () => {
+      const prompt = 'Explain medical triage in 50 words';
+      
+      const response = await claudeService.generateResponse(prompt);
+      
+      expect(response).toBeDefined();
+      expect(typeof response).toBe('string');
+      expect(response.length).toBeGreaterThan(0);
+    }, 10000); // 10 second timeout for API calls
+  });
+});
+```
+
+### Model Tests
+
+Test Mongoose schemas and validations:
+
+```javascript __tests__/User.test.js
+import User from '../models/User.js';
+import { connectDB } from '../config/database.js';
+import mongoose from 'mongoose';
+
+describe('User Model', () => {
+  beforeAll(async () => {
+    await connectDB();
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.close();
+  });
+
+  afterEach(async () => {
+    await User.deleteMany({});
+  });
+
+  it('should create a valid user', async () => {
+    const userData = {
+      name: 'Dr. Jane Smith',
+      email: 'jane@hospital.com',
+      password: 'SecurePassword123!',
+      role: 'doctor'
+    };
+
+    const user = await User.create(userData);
+
+    expect(user._id).toBeDefined();
+    expect(user.name).toBe('Dr. Jane Smith');
+    expect(user.email).toBe('jane@hospital.com');
+    expect(user.password).not.toBe('SecurePassword123!'); // Should be hashed
+  });
+
+  it('should require email field', async () => {
+    const userData = {
+      name: 'No Email User',
+      password: 'Password123!',
+      role: 'nurse'
+    };
+
+    await expect(User.create(userData)).rejects.toThrow();
+  });
+
+  it('should validate email format', async () => {
+    const userData = {
+      name: 'Invalid Email',
+      email: 'not-an-email',
+      password: 'Password123!',
+      role: 'admin'
+    };
+
+    await expect(User.create(userData)).rejects.toThrow();
+  });
+});
+```
+
+### Mocking External Services
+
+Mock Claude API calls to avoid using real API credits during tests:
+
+```javascript __tests__/diagnostic.test.js
+import request from 'supertest';
+import app from '../app.js';
+import claudeService from '../services/claudeService.js';
+
+// Mock Claude service
+jest.mock('../services/claudeService.js');
+
+describe('Diagnostic Endpoints', () => {
+  beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+  });
+
+  it('should generate diagnostic analysis', async () => {
+    // Mock the AI response
+    claudeService.generateResponse.mockResolvedValue(
+      'Based on the symptoms, this appears to be a mild case requiring monitoring.'
+    );
+
+    const response = await request(app)
+      .post('/api/diagnostic/analyze')
+      .set('Authorization', 'Bearer valid-jwt-token')
+      .send({
+        symptoms: ['fever', 'cough', 'fatigue'],
+        duration: '3 days'
+      })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(claudeService.generateResponse).toHaveBeenCalledTimes(1);
+  });
+});
+```
+
+## Testing Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Test Names">
+    Write test names that clearly describe what is being tested:
+
+    ```javascript
+    // Good
+    it('should return 401 when token is missing', async () => {});
+
+    // Bad
+    it('works', async () => {});
+    ```
+  </Accordion>
+
+  <Accordion title="Follow AAA Pattern">
+    Structure tests with Arrange, Act, Assert:
+
+    ```javascript
+    it('should calculate total correctly', () => {
+      // Arrange
+      const items = [{ price: 10 }, { price: 20 }];
+      
+      // Act
+      const total = calculateTotal(items);
+      
+      // Assert
+      expect(total).toBe(30);
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Clean Up After Tests">
+    Always clean up test data to prevent interference:
+
+    ```javascript
+    afterEach(async () => {
+      await User.deleteMany({});
+      await Session.deleteMany({});
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Test Edge Cases">
+    Don't just test the happy path:
+
+    ```javascript
+    it('should handle empty array', () => {});
+    it('should handle null values', () => {});
+    it('should handle very large numbers', () => {});
+    it('should handle special characters', () => {});
+    ```
+  </Accordion>
+
+  <Accordion title="Use Test Timeouts for Async Operations">
+    Set appropriate timeouts for API calls:
+
+    ```javascript
+    it('should call Claude API', async () => {
+      // Test code
+    }, 10000); // 10 second timeout
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Continuous Integration
+
+Integrate tests into your CI/CD pipeline:
+
+```yaml .github/workflows/test.yml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:5.0
+        ports:
+          - 27017:27017
+    
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - run: npm install
+      - run: npm test
+      - run: npm run test:coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+```
+
+## Coverage Goals
+
+Aim for these coverage targets:
+
+- **Statements**: 80%+
+- **Branches**: 75%+
+- **Functions**: 80%+
+- **Lines**: 80%+
+
+<Note>
+  Focus on testing critical paths and business logic. Not all code needs 100% coverage.
+</Note>
+
+## Troubleshooting
+
+### Jest Hangs After Tests
+
+If Jest doesn't exit cleanly:
+
+1. Ensure all database connections are closed:
+   ```javascript
+   afterAll(async () => {
+     await mongoose.connection.close();
+   });
+   ```
+
+2. Use `--detectOpenHandles` to identify the issue:
+   ```bash
+   npm test -- --detectOpenHandles
+   ```
+
+### Tests Fail in CI but Pass Locally
+
+- Check environment variables in CI
+- Ensure test database is available
+- Verify Node.js and npm versions match
+- Check for timezone differences
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment" icon="rocket" href="/development/deployment">
+    Deploy to production
+  </Card>
+  <Card title="Local Setup" icon="laptop-code" href="/development/local-setup">
+    Set up development environment
+  </Card>
+</CardGroup>

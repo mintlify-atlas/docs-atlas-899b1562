@@ -1,0 +1,174 @@
+---
+title: 'Register User'
+description: 'Create a new user account'
+api: 'POST /api/auth/register'
+---
+
+Registers a new user in the system and returns an authentication token.
+
+## Authentication
+
+No authentication required. This is a public endpoint.
+
+<Warning>
+  This endpoint is rate-limited to 5 requests per 15 minutes per IP address.
+</Warning>
+
+## Request Body
+
+<ParamField body="name" type="string" required>
+  User's full name. Must be between 2 and 50 characters.
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  User's email address. Must be a valid email format. Will be converted to lowercase.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password. Must be at least 6 characters and contain at least one letter and one number.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message: "Usuario registrado exitosamente"
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="user" type="object">
+    <ResponseField name="_id" type="string">
+      Unique user identifier
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      User's full name
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      User's email address (lowercase)
+    </ResponseField>
+    <ResponseField name="role" type="string">
+      User's role. Default: "user". Possible values: "user", "admin", "system"
+    </ResponseField>
+    <ResponseField name="isActive" type="boolean">
+      Whether the user account is active. Default: true
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of account creation
+    </ResponseField>
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last update
+    </ResponseField>
+  </ResponseField>
+  <ResponseField name="token" type="string">
+    JWT authentication token (expires in 7 days)
+  </ResponseField>
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="400 - Email Already Registered">
+  ```json
+  {
+    "success": false,
+    "message": "El email ya está registrado"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 - Validation Error">
+  ```json
+  {
+    "success": false,
+    "message": "Validation failed",
+    "errors": [
+      {
+        "field": "password",
+        "message": "La contraseña debe contener al menos una letra y un número"
+      }
+    ]
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="429 - Rate Limit Exceeded">
+  ```json
+  {
+    "success": false,
+    "message": "Demasiados intentos de autenticación. Intenta en 15 minutos.",
+    "retryAfter": 900
+  }
+  ```
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.cuido.com/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Juan Pérez",
+    "email": "juan@example.com",
+    "password": "SecurePass123"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.cuido.com/api/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    name: 'Juan Pérez',
+    email: 'juan@example.com',
+    password: 'SecurePass123'
+  })
+});
+
+const data = await response.json();
+console.log(data.data.token);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.cuido.com/api/auth/register',
+    json={
+        'name': 'Juan Pérez',
+        'email': 'juan@example.com',
+        'password': 'SecurePass123'
+    }
+)
+
+data = response.json()
+print(data['data']['token'])
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Usuario registrado exitosamente",
+  "data": {
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Juan Pérez",
+      "email": "juan@example.com",
+      "role": "user",
+      "isActive": true,
+      "createdAt": "2026-03-05T10:30:00.000Z",
+      "updatedAt": "2026-03-05T10:30:00.000Z"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1MDdmMWY3N2JjZjg2Y2Q3OTk0MzkwMTEiLCJ0aW1lc3RhbXAiOjE3MDk2MzU4MDAwMDAsImlhdCI6MTcwOTYzNTgwMCwiZXhwIjoxNzEwMjQwNjAwLCJpc3MiOiJjbGF1ZGUtcHJvbXB0LWFwaSIsInN1YiI6IjUwN2YxZjc3YmNmODZjZDc5OTQzOTAxMSJ9.abc123xyz"
+  }
+}
+```

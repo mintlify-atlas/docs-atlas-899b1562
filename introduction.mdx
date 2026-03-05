@@ -1,0 +1,150 @@
+---
+title: Introduction
+description: Welcome to CUIDO Backend - A robust backend for prompt template management with Claude AI integration
+---
+
+# Welcome to CUIDO Backend
+
+CUIDO Backend is a comprehensive Node.js application that provides intelligent prompt management and AI-powered chat capabilities using Anthropic's Claude AI. The system features secure authentication, rate limiting, advanced logging, and real-time notifications.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="JWT Authentication" icon="lock">
+    Secure user registration and login with JSON Web Tokens
+  </Card>
+  <Card title="Template Management" icon="file-code">
+    Full CRUD operations for predefined prompt templates
+  </Card>
+  <Card title="Claude AI Integration" icon="brain">
+    Intelligent prompt processing with Anthropic's Claude API
+  </Card>
+  <Card title="Rate Limiting" icon="gauge">
+    Per-user and per-endpoint rate controls to prevent abuse
+  </Card>
+  <Card title="Advanced Logging" icon="chart-line">
+    Winston-based logging system with daily rotation
+  </Card>
+  <Card title="Security First" icon="shield">
+    Helmet, CORS, input sanitization, and validation with Zod
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+CUIDO Backend is built with modern, production-ready technologies:
+
+**Backend Framework**
+- Node.js >= 18.0.0
+- Express 5.1.0
+
+**Database**
+- MongoDB >= 5.0
+- Mongoose 8.18.0
+
+**AI Integration**
+- Claude API (Anthropic SDK 0.61.0)
+- Default model: `claude-3-sonnet-20240229`
+
+**Authentication & Security**
+- JWT (jsonwebtoken 9.0.2)
+- bcryptjs 3.0.2
+- Helmet 8.1.0
+- express-rate-limit 8.1.0
+
+**Validation & Quality**
+- Zod 4.1.5
+- express-validator 7.2.1
+
+**Logging & Monitoring**
+- Winston 3.17.0
+- winston-daily-rotate-file 5.0.0
+- Morgan 1.10.1
+
+**Real-time Features**
+- Socket.IO 4.8.1
+- Real-time notifications and updates
+
+## Core Modules
+
+### Authentication Module
+Secure user management with JWT-based authentication:
+- User registration with password hashing
+- Login with token generation
+- Protected routes with middleware authentication
+
+### Prompt Template System
+Manage reusable prompt templates:
+- Create, read, update, and delete templates
+- Category-based organization
+- Usage analytics and tracking
+
+### Chat System
+Claude AI-powered conversational interface:
+- Combine templates with user prompts
+- Token usage tracking
+- Conversation history
+- Response streaming support
+
+### CUIDO Modules
+Specialized healthcare-focused modules:
+- **Diagnostic Module**: Intelligent diagnostic assistance
+- **Mentorship Module**: Virtual mentoring system
+- **Micro-learning Module**: Bite-sized learning content
+- **Recognition Module**: Employee recognition and rewards
+- **Correlation Module**: Data correlation and insights
+
+## API Architecture
+
+The API follows RESTful principles with these main endpoints:
+
+| Endpoint Group | Base Path | Description |
+|---------------|-----------|-------------|
+| Authentication | `/api/auth` | User registration, login, profile |
+| Prompts | `/api/prompts` | Template CRUD operations |
+| Chat | `/api/chat` | Claude AI completions and history |
+| Employees | `/api/employees` | Employee management |
+| Diagnostic | `/api/diagnostic` | Diagnostic module |
+| Mentorship | `/api/mentorship` | Mentorship features |
+| Micro-learning | `/api/microlearning` | Learning content |
+| Recognition | `/api/recognition` | Recognition system |
+| Correlation | `/api/correlation` | Data correlations |
+
+## Health Check
+
+The server provides a health check endpoint for monitoring:
+
+```bash
+GET /health
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Servicio funcionando correctamente",
+  "timestamp": "2024-03-05T10:30:00.000Z",
+  "environment": "development"
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running in 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation instructions
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Configure environment variables
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/auth/register">
+    Explore all API endpoints
+  </Card>
+</CardGroup>
+
+<Note>
+  CUIDO Backend requires an Anthropic API key to function. You can obtain one from [Anthropic's website](https://console.anthropic.com/).
+</Note>

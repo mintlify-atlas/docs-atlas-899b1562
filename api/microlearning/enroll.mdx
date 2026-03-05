@@ -1,0 +1,219 @@
+---
+title: 'Course Enrollment'
+description: 'Enroll employees in microlearning courses'
+api: 'POST /api/microlearning/courses/:courseId/enroll'
+---
+
+## Overview
+
+Enroll an employee in a specific microlearning course. Each employee can only be enrolled once per course.
+
+## Authentication
+
+This endpoint requires authentication.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Endpoint
+
+```
+POST /api/microlearning/courses/:courseId/enroll
+```
+
+## Path Parameters
+
+<ParamField path="courseId" type="string" required>
+  The MongoDB ObjectId of the course to enroll in
+</ParamField>
+
+## Request Body
+
+<ParamField body="employeeId" type="string" required>
+  The MongoDB ObjectId of the employee to enroll (24-character hex string)
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if enrollment was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="data.enrollment" type="object">
+  The created enrollment object
+  
+  <Expandable title="enrollment properties">
+    <ResponseField name="_id" type="string">
+      Enrollment unique identifier
+    </ResponseField>
+    
+    <ResponseField name="employeeId" type="string">
+      Reference to the enrolled employee
+    </ResponseField>
+    
+    <ResponseField name="courseId" type="string">
+      Reference to the course
+    </ResponseField>
+    
+    <ResponseField name="progress" type="object">
+      Enrollment progress tracking
+      
+      <Expandable title="progress properties">
+        <ResponseField name="status" type="string">
+          Enrollment status. Options: `inscrito`, `en_progreso`, `completado`, `certificado`. Default: `inscrito`
+        </ResponseField>
+        
+        <ResponseField name="currentWeek" type="number">
+          Current week in 15-day methodology (1 or 2). Default: 1
+        </ResponseField>
+        
+        <ResponseField name="certified" type="boolean">
+          Whether the employee has been certified. Default: false
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="timeSpent" type="number">
+      Total time spent in minutes. Default: 0
+    </ResponseField>
+    
+    <ResponseField name="accessCount" type="number">
+      Number of times the course has been accessed. Default: 0
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of enrollment creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.cuido.com/api/microlearning/courses/65a1b2c3d4e5f6a7b8c9d0e1/enroll \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2"
+  }'
+```
+
+```javascript JavaScript
+const courseId = '65a1b2c3d4e5f6a7b8c9d0e1';
+const response = await fetch(`https://api.cuido.com/api/microlearning/courses/${courseId}/enroll`, {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    employeeId: '65a1b2c3d4e5f6a7b8c9d0e2'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+course_id = "65a1b2c3d4e5f6a7b8c9d0e1"
+url = f"https://api.cuido.com/api/microlearning/courses/{course_id}/enroll"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Inscripción exitosa",
+  "data": {
+    "enrollment": {
+      "_id": "65a1b2c3d4e5f6a7b8c9d0e3",
+      "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+      "courseId": "65a1b2c3d4e5f6a7b8c9d0e1",
+      "progress": {
+        "status": "inscrito",
+        "currentWeek": 1,
+        "certified": false
+      },
+      "timeSpent": 0,
+      "accessCount": 0,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+## Error Responses
+
+<Tabs>
+  <Tab title="400 Already Enrolled">
+    ```json
+    {
+      "success": false,
+      "message": "Ya está inscrito en este curso"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Not Found">
+    ```json
+    {
+      "success": false,
+      "message": "Curso o empleado no encontrado"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Business Logic
+
+The enrollment service (`src/services/microLearningService.js:11`) performs the following:
+
+1. Checks if the employee is already enrolled in the course
+2. Creates a new `CourseEnrollment` document with default values
+3. Links the employee and course via ObjectId references
+4. Initializes progress tracking for the 15-day methodology
+
+## 15-Day Methodology
+
+Courses follow a two-week structure:
+
+- **Week 1**: Initial content consumption and Week 1 quiz
+- **Week 2**: Advanced content and final quiz
+- **Certification**: Awarded upon passing the final quiz (if `certificationType` is `aprobacion`)
+
+## Source Code References
+
+- Route: `src/routes/microLearningRoutes.js:21`
+- Controller: `src/controllers/microLearningController.js:43`
+- Service: `src/services/microLearningService.js:11`
+- Model: `src/models/CourseEnrollment.js`

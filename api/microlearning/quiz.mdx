@@ -1,0 +1,255 @@
+---
+title: 'Submit Quiz'
+description: 'Submit quiz answers and receive automatic grading with certification'
+api: 'POST /api/microlearning/courses/:courseId/quiz'
+---
+
+## Overview
+
+Submit quiz answers for a specific course. The system automatically grades the quiz, updates progress, and awards certificates if the passing score is met.
+
+## Authentication
+
+This endpoint requires authentication.
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Endpoint
+
+```
+POST /api/microlearning/courses/:courseId/quiz
+```
+
+## Path Parameters
+
+<ParamField path="courseId" type="string" required>
+  The MongoDB ObjectId of the course
+</ParamField>
+
+## Request Body
+
+<ParamField body="employeeId" type="string" required>
+  The MongoDB ObjectId of the employee (24-character hex string)
+</ParamField>
+
+<ParamField body="answers" type="array" required>
+  Array of answer indices (0-based) corresponding to quiz questions
+  
+  Example: `[2, 0, 3, 1, 2]` for a 5-question quiz
+</ParamField>
+
+<ParamField body="quizType" type="string">
+  Type of quiz being submitted. Options: `week1`, `final`. Default: `final`
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the quiz was processed successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="data.result" type="object">
+  Quiz grading result
+  
+  <Expandable title="result properties">
+    <ResponseField name="score" type="number">
+      Calculated score as a percentage (0-100)
+    </ResponseField>
+    
+    <ResponseField name="passed" type="boolean">
+      Whether the employee passed the quiz
+    </ResponseField>
+    
+    <ResponseField name="passingScore" type="number">
+      The minimum score required to pass
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Quiz Scoring Algorithm
+
+The scoring system (`src/services/microLearningService.js:90`) works as follows:
+
+1. Each question has a `points` value (default: 1)
+2. Total points = sum of all question points
+3. Earned points = sum of points for correct answers
+4. Score = `(earnedPoints / totalPoints) * 100` (rounded)
+
+## Progress Updates
+
+### Week 1 Quiz
+
+When `quizType` is `week1`:
+
+- Updates `progress.week1QuizScore` with the calculated score
+- Advances to `progress.currentWeek = 2`
+- Status remains `en_progreso`
+
+### Final Quiz
+
+When `quizType` is `final`:
+
+- Updates `progress.finalQuizScore` with the calculated score
+- Calculates `progress.totalScore` as average of Week 1 and Final scores
+- If score ≥ `passingScore`:
+  - Sets `progress.status = 'completado'`
+  - Sets `progress.completedAt` to current timestamp
+  - If `certificationType = 'aprobacion'`:
+    - Sets `progress.certified = true`
+    - Sets `progress.certificateIssuedAt` to current timestamp
+
+## Examples
+
+<CodeGroup>
+```bash cURL - Week 1 Quiz
+curl -X POST https://api.cuido.com/api/microlearning/courses/65a1b2c3d4e5f6a7b8c9d0e1/quiz \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+    "answers": [2, 0, 3, 1, 2],
+    "quizType": "week1"
+  }'
+```
+
+```bash cURL - Final Quiz
+curl -X POST https://api.cuido.com/api/microlearning/courses/65a1b2c3d4e5f6a7b8c9d0e1/quiz \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+    "answers": [3, 2, 1, 0, 2, 1, 3, 2, 0, 1],
+    "quizType": "final"
+  }'
+```
+
+```javascript JavaScript
+const courseId = '65a1b2c3d4e5f6a7b8c9d0e1';
+const response = await fetch(`https://api.cuido.com/api/microlearning/courses/${courseId}/quiz`, {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    employeeId: '65a1b2c3d4e5f6a7b8c9d0e2',
+    answers: [2, 0, 3, 1, 2],
+    quizType: 'week1'
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python
+import requests
+
+course_id = "65a1b2c3d4e5f6a7b8c9d0e1"
+url = f"https://api.cuido.com/api/microlearning/courses/{course_id}/quiz"
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "employeeId": "65a1b2c3d4e5f6a7b8c9d0e2",
+    "answers": [2, 0, 3, 1, 2],
+    "quizType": "final"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+</CodeGroup>
+
+## Response Examples
+
+### Passed Quiz
+
+```json
+{
+  "success": true,
+  "message": "Quiz procesado exitosamente",
+  "data": {
+    "result": {
+      "score": 85,
+      "passed": true,
+      "passingScore": 70
+    }
+  }
+}
+```
+
+### Failed Quiz
+
+```json
+{
+  "success": true,
+  "message": "Quiz procesado exitosamente",
+  "data": {
+    "result": {
+      "score": 60,
+      "passed": false,
+      "passingScore": 70
+    }
+  }
+}
+```
+
+## Error Responses
+
+<Tabs>
+  <Tab title="400 Bad Request">
+    ```json
+    {
+      "success": false,
+      "message": "Validation error",
+      "errors": [
+        {
+          "field": "answers",
+          "message": "Answers array is required"
+        }
+      ]
+    }
+    ```
+  </Tab>
+  
+  <Tab title="404 Not Enrolled">
+    ```json
+    {
+      "success": false,
+      "message": "No está inscrito en este curso"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="401 Unauthorized">
+    ```json
+    {
+      "success": false,
+      "message": "No autorizado. Token inválido o expirado."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Certification Types
+
+The course can have two certification types:
+
+- **`participacion`**: Certificate awarded just for completing the course
+- **`aprobacion`**: Certificate awarded only if the passing score is met
+
+## Source Code References
+
+- Route: `src/routes/microLearningRoutes.js:24`
+- Controller: `src/controllers/microLearningController.js:53`
+- Service: `src/services/microLearningService.js:40`
+- Scoring Logic: `src/services/microLearningService.js:90`
+- Validator: `src/validators/cuidoValidators.js:62`
