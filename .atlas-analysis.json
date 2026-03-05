@@ -1,0 +1,153 @@
+{
+  "projectType": "api-service",
+  "projectName": "CUIDO Backend",
+  "projectDescription": "AI-powered healthcare workforce management backend with intelligent diagnostics, virtual mentorship, and employee wellness tracking",
+  "theme": "palm",
+  "primaryColor": "#848c8e",
+  "lightColor": "#11161e",
+  "darkColor": "#cfd0d2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/authentication",
+              "concepts/modules-overview",
+              "concepts/gamification"
+            ]
+          },
+          {
+            "group": "Modules",
+            "pages": [
+              "modules/diagnostic",
+              "modules/mentorship",
+              "modules/microlearning",
+              "modules/recognition",
+              "modules/correlation"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/local-setup",
+              "development/testing",
+              "development/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/register",
+              "api/auth/login",
+              "api/auth/profile"
+            ]
+          },
+          {
+            "group": "Employees",
+            "pages": [
+              "api/employees/overview",
+              "api/employees/create",
+              "api/employees/get",
+              "api/employees/update"
+            ]
+          },
+          {
+            "group": "Diagnostic Module",
+            "pages": [
+              "api/diagnostic/survey",
+              "api/diagnostic/wellness-heatmap",
+              "api/diagnostic/alerts"
+            ]
+          },
+          {
+            "group": "Mentorship Module",
+            "pages": [
+              "api/mentorship/ask"
+            ]
+          },
+          {
+            "group": "Microlearning Module",
+            "pages": [
+              "api/microlearning/courses",
+              "api/microlearning/enroll",
+              "api/microlearning/quiz",
+              "api/microlearning/recommendations"
+            ]
+          },
+          {
+            "group": "Recognition Module",
+            "pages": [
+              "api/recognition/grant",
+              "api/recognition/wall",
+              "api/recognition/stats"
+            ]
+          },
+          {
+            "group": "Correlation Module",
+            "pages": [
+              "api/correlation/analyze"
+            ]
+          },
+          {
+            "group": "Chat & Prompts",
+            "pages": [
+              "api/chat/complete",
+              "api/chat/history",
+              "api/prompts/templates"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Intelligent Diagnostics with AI-powered sentiment analysis and risk assessment",
+    "24/7 Virtual Mentorship using Claude AI for healthcare professionals",
+    "Microlearning platform with personalized course recommendations",
+    "Gamification system with points, badges, levels, and leaderboards",
+    "Real-time wellness heatmaps and smart alerts for departments",
+    "Automated pattern detection for employee turnover risk",
+    "Socket.IO integration for real-time notifications",
+    "Comprehensive JWT authentication and role-based access control"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/register - User registration",
+    "POST /api/auth/login - User authentication",
+    "GET /api/auth/profile - Get user profile",
+    "POST /api/employees - Create employee",
+    "GET /api/employees/:id - Get employee details",
+    "POST /api/diagnostic/survey/quick - Submit quick wellness survey",
+    "GET /api/diagnostic/wellness-heatmap/:hospitalId - Get wellness heatmap",
+    "GET /api/diagnostic/alerts - Get smart alerts",
+    "POST /api/mentorship/ask - Ask virtual mentor",
+    "GET /api/microlearning/courses - List available courses",
+    "POST /api/microlearning/courses/:courseId/enroll - Enroll in course",
+    "POST /api/microlearning/courses/:courseId/quiz - Submit quiz",
+    "GET /api/microlearning/recommendations/:employeeId - Get course recommendations",
+    "POST /api/recognition/grant - Grant recognition to employee",
+    "GET /api/recognition/wall/:hospitalId - Get recognition wall",
+    "GET /api/recognition/stats/:employeeId - Get gamification stats",
+    "POST /api/correlation/analyze - Analyze performance correlations",
+    "POST /api/chat/complete - Generate AI response with Claude",
+    "GET /api/chat/history - Get conversation history",
+    "GET /api/prompts - List prompt templates"
+  ]
+}
